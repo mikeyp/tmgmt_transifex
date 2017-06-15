@@ -1,0 +1,41 @@
+drupal_build_composer_project: false
+drupal_build_makefile: true
+drupalvm_webserver: nginx
+drupal_core_path: "/var/www/drupalvm/drupal"
+drupal_major_version: 7
+
+vagrant_synced_folders:
+  # The first synced folder will be used for the default Drupal installation, if
+  # any of the build_* settings are 'true'. By default the folder is set to
+  # the drupal-vm folder.
+  - local_path: .
+    destination: /var/www/drupalvm
+    type: nfs
+    create: true
+
+  - local_path: ./../tmgmt_transifex
+    destination: /var/www/drupalvm/drupal/sites/all/modules/tmgmt_transifex
+    type: nfs
+    create: true
+
+installed_extras:
+  - adminer
+  # - blackfire
+  # - drupalconsole
+  - drush
+  # - elasticsearch
+  # - java
+  - mailhog
+  # - memcached
+  # - newrelic
+  # - nodejs
+  - pimpmylog
+  # - redis
+  # - ruby
+  # - selenium
+  # - solr
+  # - tideways
+  # - upload-progress
+  - varnish
+  - xdebug
+  - xhprof # use `tideways` if you're installing PHP 7+
