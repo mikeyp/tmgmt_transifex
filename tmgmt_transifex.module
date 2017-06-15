@@ -1,0 +1,46 @@
+<?php
+
+/**
+ * @file
+ * Module file of the translation management test module.
+ */
+
+/**
+ * Implements hook_tmgmt_translator_plugin_info().
+ */
+function tmgmt_transifex_tmgmt_translator_plugin_info() {
+  return array(
+    'transifex' => array(
+      'label' => t('Transifex translator'),
+      'description' => t('Transifex Translator service.'),
+      'plugin controller class' => 'TMGMTTransifexTranslatorPluginController',
+      'ui controller class' => 'TMGMTTransifexTranslatorUIController',
+      'default settings' => array(
+        'api' => '',
+        'clientid' => '',
+        'clientsecret' => '',
+      ),
+    ),
+  );
+}
+
+/**
+ * Validation callback for the plugin settings form.
+ */
+function tmgmt_transifex_plugin_settings_form_validate($element, &$form_state, $form) {
+  $settings = $form_state['values']['settings'];
+  // Only validate the API key if one was provided.
+  if (empty($settings['api'])) {
+    return;
+  }
+
+  /** @var TMGMTTranslator $translator */
+  $translator = $form_state['tmgmt_translator'];
+  // Update translator settings with form data.
+  $translator->settings = $settings;
+  /** @var TMGMTTransifexTranslatorPluginController $controller */
+  $controller = $translator->getController();
+  if (!$controller->getSupportedRemoteLanguages($translator)) {
+    form_error($element, t('The "Transifex API Key" is not valid.'));
+  }
+}
