@@ -2,6 +2,10 @@
 
 Starting from here
 
+You would need virtualbox and vagrant so go to their sites and retrieve the latest
+dmg.
+
+
 ```
   cd ..
   cd ..
