@@ -40,7 +40,7 @@ function tmgmt_transifex_plugin_settings_form_validate($element, &$form_state, $
   $translator->settings = $settings;
   /** @var TMGMTTransifexTranslatorPluginController $controller */
   $controller = $translator->getController();
-  if (!$controller->getSupportedRemoteLanguages($translator)) {
-    form_error($element, t('The "Transifex API Key" is not valid.'));
+  if (!$controller->getTransifexProject($translator)) {
+    form_error($element, t('The "Transifex API Key" is not valid or the target transifex project does not exist.'));
   }
 }

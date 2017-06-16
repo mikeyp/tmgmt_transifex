@@ -119,6 +119,15 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return $languages;
   }
 
+  public function getTransifexProject(TMGMTTranslator $translator) {
+    $request = $this->doRequest($translator, 'project/' . $translator->getSetting('project'));
+    echo '<h1>' . $request->code . '</h1>';
+    if ($request && $request->code == 200) {
+      return json_decode($request->data);
+    }
+  }
+
+
   /**
    * Overrides TMGMTDefaultTranslatorPluginController::getDefaultRemoteLanguagesMappings().
    */
@@ -185,7 +194,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       return NULL;
     }
 
-    $options['headers']['Authorization'] = 'Bearer ' . base64_encode('api:' . $translator->getSetting('api'));
+    $options['headers']['Authorization'] = 'Basic ' . base64_encode('api:' . $translator->getSetting('api'));
     $url = url($url, array('query' => $query));
     return drupal_http_request($url, $options);
   }
