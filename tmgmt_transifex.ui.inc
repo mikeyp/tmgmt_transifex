@@ -31,7 +31,6 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
       '#description' => t('Please enter your Transifex API key. Instructions on how to set up your Azure account and get the key can be found <a href="!link" target="_blank">here</a>',array('!link' => $instruction_url)),
     );
-    // 1/7e993c0e89f15f7ababac6a20954edd872392304
     $form['project'] = array(
       '#type' => 'textfield',
       '#title' => t('Transifex target project'),

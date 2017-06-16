@@ -110,10 +110,13 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
    */
   public function getSupportedRemoteLanguages(TMGMTTranslator $translator) {
     $request = $this->doRequest($translator, 'languages');
+    $languages = array();
     if ($request && $request->code == 200) {
-      watchdog('tmgmt_transifex', $request->data, WATCHDOG_INFO);
-      return $request->data;
+      foreach (json_decode($request->data) as $language) {
+        $languages[$language->code] = $language->code;
+      }
     }
+    return $languages;
   }
 
   /**
@@ -182,7 +185,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       return NULL;
     }
 
-    $options['headers']['Authorization'] = 'Bearer ' . $token;
+    $options['headers']['Authorization'] = 'Bearer ' . base64_encode('api:' . $translator->getSetting('api'));
     $url = url($url, array('query' => $query));
     return drupal_http_request($url, $options);
   }
