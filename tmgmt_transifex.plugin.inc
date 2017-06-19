@@ -1,5 +1,54 @@
 <?php
 
+class TransifexApi {
+  var $translator;
+
+  function __construct($translator) {
+    $this->translator = $translator;
+  }
+
+  function doRequest($method, $url, $data=NULL, $headers = array()) {
+    $data_string = json_encode($data);
+    $ch = curl_init( $translator->getSetting('tx') . '/api/2/project/'. $translator->getSetting('project') . '/' . $url);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+     'Content-Type: application/json',
+     'Content-Length: ' . strlen($data_string),
+     'Authorization: ' . 'Basic ' . base64_encode('api:' . $this->translator->getSetting('api'))
+    ));
+
+    $response = curl_exec($ch);
+    if (curl_error($ch)) {
+     watchdog('tmgmt_transifex', 'Curl error %ce', array('%ce' => curl_error($ch)), WATCHDOG_ERROR, $link = NULL);
+     return false;
+    }
+    curl_close($ch);
+    return $response;
+ }
+
+ function createResource($name, $slug, $source_strings) {
+   dpm($this->doRequest('POST', 'resources', array(
+     'name' => $name,
+     'slug' => $slug,
+     'content' => $source_strings,
+     'i18n_type' => 'TXT'
+   )));
+ }
+
+ function upsertResource($name, $slug, $content) {
+   $this->doRequest('POST', 'resources', array(
+
+   ));
+ }
+
+}
+
+
+
+
+
 /**
  * @file
  * Provides Transifex Translator plugin controller.
@@ -66,43 +115,60 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
   public function requestTranslation(TMGMTJob $job) {
     // Pull the source data array through the job and flatten it.
     $data = array_filter(tmgmt_flatten_data($job->getData()), '_tmgmt_filter_data');
+
+    $source_strings = '';
     $translation = array();
     $translator = $job->getTranslator();
-    foreach ($data as $key => $value) {
-      // Query the translator API.
-      $result = $this->doRequest($job->getTranslator(), 'Translate', array(
-        'from' => $translator->mapToRemoteLanguage($job->source_language),
-        'to' => $translator->mapToRemoteLanguage($job->target_language),
-        'contentType' => 'text/plain',
-        'text' => $value['#text'],
-      ), array(
-        'headers' => array(
-          'Content-Type' => 'text/plain',
-        ),
-      ));
+    $tx = new TransifexApi($translator);
+
+    foreach ($data as $tjiid => $value) {
+      $tji = entity_load_single('tmgmt_job_item', $tjiid);
+      $slug = $translator->getSetting('project') . '_' . $tji->item_id;
+      $name = $tji->data['node_title']['#text'];
+      $source_strings = $name . '\n';
+      $source_strings .= $tji->data['body'][0]['value']['#text'];
+      dpm('@' . $slug. '@' . $name);
+      dpm($source_strings);
+
+
+
+      //$tx->doRequest('POST', 'https://requestb.in/1hhrv6y1', $value);
+      // dpm(postTX($translator, 'https://requestb.in/1hhrv6y1', $data));
+      // http://www.transifex.com/api/2/project/transifex/resources/
+
+      // $result = $this->doRequest($job->getTranslator(), 'Translate', array(
+      //   'from' => $translator->mapToRemoteLanguage($job->source_language),
+      //   'to' => $translator->mapToRemoteLanguage($job->target_language),
+      //   'contentType' => 'text/plain',
+      //   'text' => $value['#text'],
+      // ), array(
+      //   'headers' => array(
+      //     'Content-Type' => 'text/plain',
+      //   ),
+      // ));
       // Check the result code for possible errors.
-      switch ($result->code) {
-        case 200:
-          // Lets use DOMDocument for now because this service enables us to
-          // send an array of translation sources, and we will probably use
-          // this soon.
-          $dom = new DOMDocument;
-          $dom->loadXML($result->data);
-          $items = $dom->getElementsByTagName('string');
-          $translation[$key]['#text'] = $items->item(0)->nodeValue;
-          break;
-        case 400:
-          $job->rejected('Rejected by Transifex Translator: !error', array('!error' => $result->data), 'error');
-          return;
-        default:
-          $job->rejected('Unknown error from Transifex Translator: !error', array('!error' => $result->data), 'error');
-          return;
-      }
+      // switch ($result->code) {
+      //   case 200:
+      //     // Lets use DOMDocument for now because this service enables us to
+      //     // send an array of translation sources, and we will probably use
+      //     // this soon.
+      //     $dom = new DOMDocument;
+      //     $dom->loadXML($result->data);
+      //     $items = $dom->getElementsByTagName('string');
+      //     $translation[$key]['#text'] = $items->item(0)->nodeValue;
+      //     break;
+      //   case 400:
+      //     $job->rejected('Rejected by Transifex Translator: !error', array('!error' => $result->data), 'error');
+      //     return;
+      //   default:
+      //     $job->rejected('Unknown error from Transifex Translator: !error', array('!error' => $result->data), 'error');
+      //     return;
+      // }
     }
     // The translation job has been successfully submitted.
-    $job->submitted('The translation job has been submitted.');
+    // $job->submitted('The translation job has been submitted.');
     // Save the translated data through the job.
-    $job->addTranslatedData(tmgmt_unflatten_data($translation));
+    //$job->addTranslatedData(tmgmt_unflatten_data($translation));
   }
 
   /**
@@ -121,7 +187,6 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
   public function getTransifexProject(TMGMTTranslator $translator) {
     $request = $this->doRequest($translator, 'project/' . $translator->getSetting('project'));
-    echo '<h1>' . $request->code . '</h1>';
     if ($request && $request->code == 200) {
       return json_decode($request->data);
     }
@@ -198,7 +263,4 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $url = url($url, array('query' => $query));
     return drupal_http_request($url, $options);
   }
-
-
-
 }
