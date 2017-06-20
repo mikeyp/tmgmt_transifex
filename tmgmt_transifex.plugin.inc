@@ -35,13 +35,23 @@ class TransifexApi {
  }
 
  function createResource($slug, $name, $source_strings) {
-   dpm($this->doRequest('POST', 'resources', array(
+   return $this->doRequest('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
      'content' => json_encode($source_strings),
      'i18n_type' => 'KEYVALUEJSON'
-   )));
+   ));
  }
+
+ function updateResource($slug, $name, $source_strings) {
+   return $this->doRequest('POST', 'resources', array(
+     'name' => $name,
+     'slug' => $slug,
+     'content' => json_encode($source_strings),
+     'i18n_type' => 'KEYVALUEJSON'
+   ));
+ }
+
 
  function upsertResource($name, $slug, $content) {
    $this->doRequest('POST', 'resources', array(
@@ -121,57 +131,24 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
   public function requestTranslation(TMGMTJob $job) {
     // Pull the source data array through the job and flatten it.
     $data = array_filter(tmgmt_flatten_data($job->getData()), '_tmgmt_filter_data');
-
-    $source_strings = '';
     $translation = array();
     $translator = $job->getTranslator();
     $tx = new TransifexApi($translator);
+    $payloads = array();
 
     foreach ($data as $tjiid => $value) {
       $tji = entity_load_single('tmgmt_job_item', $tjiid);
-      $slug = $translator->getSetting('project') . '_' . $tji->item_id;
-      $name = $tji->data['node_title']['#text'];
-
-      $source_strings = array();
-
-      $source_strings['title'] = $name;
-      $body = $tji->data['body'][0]['value']['#text'];
-      $source_strings[$body] = $body;
-      dpm($tx->createResource($slug, $name, $source_strings));
-
-      //$tx->doRequest('POST', 'https://requestb.in/1hhrv6y1', $value);
-      // dpm(postTX($translator, 'https://requestb.in/1hhrv6y1', $data));
-      // http://www.transifex.com/api/2/project/transifex/resources/
-
-      // $result = $this->doRequest($job->getTranslator(), 'Translate', array(
-      //   'from' => $translator->mapToRemoteLanguage($job->source_language),
-      //   'to' => $translator->mapToRemoteLanguage($job->target_language),
-      //   'contentType' => 'text/plain',
-      //   'text' => $value['#text'],
-      // ), array(
-      //   'headers' => array(
-      //     'Content-Type' => 'text/plain',
-      //   ),
-      // ));
-      // Check the result code for possible errors.
-      // switch ($result->code) {
-      //   case 200:
-      //     // Lets use DOMDocument for now because this service enables us to
-      //     // send an array of translation sources, and we will probably use
-      //     // this soon.
-      //     $dom = new DOMDocument;
-      //     $dom->loadXML($result->data);
-      //     $items = $dom->getElementsByTagName('string');
-      //     $translation[$key]['#text'] = $items->item(0)->nodeValue;
-      //     break;
-      //   case 400:
-      //     $job->rejected('Rejected by Transifex Translator: !error', array('!error' => $result->data), 'error');
-      //     return;
-      //   default:
-      //     $job->rejected('Unknown error from Transifex Translator: !error', array('!error' => $result->data), 'error');
-      //     return;
-      // }
+      if (!isset($payloads[$tji->item_id])) {
+        $payloads[$tji->item_id] = array();
+      }
+      $payloads[$tji->item_id][$value['#label']] = $value['#text'];
     }
+
+    foreach ($payloads as $node_id => $payload) {
+      $slug = $translator->getSetting('project') . '_' . $node_id;
+      dpm($tx->createResource($slug, $payload['Title'], $payload));
+    }
+
     // The translation job has been successfully submitted.
     // $job->submitted('The translation job has been submitted.');
     // Save the translated data through the job.
