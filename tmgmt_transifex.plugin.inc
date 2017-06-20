@@ -9,7 +9,13 @@ class TransifexApi {
 
   function doRequest($method, $url, $data=NULL, $headers = array()) {
     $data_string = json_encode($data);
-    $ch = curl_init( $translator->getSetting('tx') . '/api/2/project/'. $translator->getSetting('project') . '/' . $url);
+    $url = join('', array(
+      'https://www.transifex.com',
+      '/api/2/project/',
+      $this->translator->getSetting('project') . '/',
+      $url
+    ));
+    $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -22,18 +28,18 @@ class TransifexApi {
     $response = curl_exec($ch);
     if (curl_error($ch)) {
      watchdog('tmgmt_transifex', 'Curl error %ce', array('%ce' => curl_error($ch)), WATCHDOG_ERROR, $link = NULL);
-     return false;
+     return curl_error($ch);
     }
     curl_close($ch);
     return $response;
  }
 
- function createResource($name, $slug, $source_strings) {
+ function createResource($slug, $name, $source_strings) {
    dpm($this->doRequest('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
-     'content' => $source_strings,
-     'i18n_type' => 'TXT'
+     'content' => json_encode($source_strings),
+     'i18n_type' => 'KEYVALUEJSON'
    )));
  }
 
@@ -125,12 +131,13 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       $tji = entity_load_single('tmgmt_job_item', $tjiid);
       $slug = $translator->getSetting('project') . '_' . $tji->item_id;
       $name = $tji->data['node_title']['#text'];
-      $source_strings = $name . '\n';
-      $source_strings .= $tji->data['body'][0]['value']['#text'];
-      dpm('@' . $slug. '@' . $name);
-      dpm($source_strings);
 
+      $source_strings = array();
 
+      $source_strings['title'] = $name;
+      $body = $tji->data['body'][0]['value']['#text'];
+      $source_strings[$body] = $body;
+      dpm($tx->createResource($slug, $name, $source_strings));
 
       //$tx->doRequest('POST', 'https://requestb.in/1hhrv6y1', $value);
       // dpm(postTX($translator, 'https://requestb.in/1hhrv6y1', $data));

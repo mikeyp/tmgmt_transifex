@@ -17,8 +17,8 @@ function tmgmt_transifex_tmgmt_translator_plugin_info() {
       'ui controller class' => 'TMGMTTransifexTranslatorUIController',
       'default settings' => array(
         'api' => '',
-        'clientid' => '',
-        'clientsecret' => '',
+        'tx' => '',
+        'project' => '',
       ),
     ),
   );
