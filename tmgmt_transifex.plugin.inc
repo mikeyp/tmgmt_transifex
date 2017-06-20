@@ -139,14 +139,24 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     foreach ($data as $tjiid => $value) {
       $tji = entity_load_single('tmgmt_job_item', $tjiid);
       if (!isset($payloads[$tji->item_id])) {
-        $payloads[$tji->item_id] = array();
+        $payloads[$tji->item_id] = array(
+          "title" => '',
+          "po" => ''
+        );
       }
-      $payloads[$tji->item_id][$value['#label']] = $value['#text'];
+
+      if ($value['#label'] == 'Title') {
+        $payloads[$tji->item_id]['title'] = $value['#text'];
+      }
+
+      $payloads[$tji->item_id]['po'] .= "msgid \"" . $value['#label'] . "\"\n";
+      $payloads[$tji->item_id]['po'] .= "msgstr \"" . $value['#text'] . "\"\n";
     }
 
     foreach ($payloads as $node_id => $payload) {
       $slug = $translator->getSetting('project') . '_' . $node_id;
-      dpm($tx->createResource($slug, $payload['Title'], $payload));
+      dpm($payload);
+      //dpm($tx->createResource($slug, $payload['Title'], $payload));
     }
 
     // The translation job has been successfully submitted.
