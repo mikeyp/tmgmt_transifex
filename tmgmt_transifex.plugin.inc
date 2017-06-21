@@ -44,9 +44,8 @@ class TransifexApi {
  }
 
  function updateResource($slug, $name, $po) {
-   return $this->doRequest('POST', 'resources', array(
+   return $this->doRequest('PUT', 'resource/' . $slug, array(
      'name' => $name,
-     'slug' => $slug,
      'content' => $po,
      'i18n_type' => 'PO'
    ));
@@ -54,9 +53,9 @@ class TransifexApi {
 
 
  function upsertResource($name, $slug, $content) {
-   $this->doRequest('POST', 'resources', array(
-
-   ));
+    $ret = json_decode($this->createResource($name, $slug, $content));
+    if (!ret) return $this->updateResource($name, $slug, $content);
+    return $ret;
  }
 
 }
@@ -166,21 +165,20 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
    * Overrides TMGMTDefaultTranslatorPluginController::getSupportedRemoteLanguages().
    */
   public function getSupportedRemoteLanguages(TMGMTTranslator $translator) {
-    $request = $this->doRequest($translator, 'languages');
+    $tx = new TransifexApi($translator);
+    $request = $tx->doRequest('GET', 'languages');
     $languages = array();
-    if ($request && $request->code == 200) {
-      foreach (json_decode($request->data) as $language) {
-        $languages[$language->code] = $language->code;
-      }
+    foreach (json_decode($request) as $language) {
+      $languages[$language->code] = $language->code;
     }
     return $languages;
   }
 
   public function getTransifexProject(TMGMTTranslator $translator) {
-    $request = $this->doRequest($translator, 'project/' . $translator->getSetting('project'));
-    if ($request && $request->code == 200) {
-      return json_decode($request->data);
-    }
+    $tx = new TransifexApi($translator);
+    $request = $tx->doRequest('GET', '' . $translator->getSetting('project'));
+    dpm($request);
+    return json_decode($request);
   }
 
 
@@ -223,35 +221,4 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return FALSE;
   }
 
-  /**
-   * Execute a request against the Transifex API.
-   *
-   * @param TMGMTTranslator $translator
-   *   The translator entity to get the settings from.
-   * @param $path
-   *   The path that should be appended to the base uri, e.g. Translate or
-   *   GetLanguagesForTranslate.
-   * @param $query
-   *   (Optional) Array of GET query arguments.
-   * @param $options
-   *   (Optional) Array of additional options passed to drupal_http_request().
-   *
-   * @return stdclass|null
-   *   The response object returned by drupal_http_request() or null if the API
-   *   request failed.
-   */
-  protected function doRequest(TMGMTTranslator $translator, $path, array $query = array(), array $options = array()) {
-    $custom_url = $translator->getSetting('tx');
-    $url = ($custom_url ? $custom_url : $this->translatorUrl) . '/' . $path;
-
-    $apiKey = $translator->getSetting('api');
-    if (empty($apiKey)) {
-      watchdog('tmgmt_transifex', "Error: Unable to get API key. Please be sure you have set a value in the module's configuration page", WATCHDOG_ERROR);
-      return NULL;
-    }
-
-    $options['headers']['Authorization'] = 'Basic ' . base64_encode('api:' . $translator->getSetting('api'));
-    $url = url($url, array('query' => $query));
-    return drupal_http_request($url, $options);
-  }
 }
