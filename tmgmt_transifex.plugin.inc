@@ -34,21 +34,21 @@ class TransifexApi {
     return $response;
  }
 
- function createResource($slug, $name, $source_strings) {
+ function createResource($slug, $name, $po) {
    return $this->doRequest('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
-     'content' => json_encode($source_strings),
-     'i18n_type' => 'KEYVALUEJSON'
+     'content' => $po,
+     'i18n_type' => 'PO'
    ));
  }
 
- function updateResource($slug, $name, $source_strings) {
+ function updateResource($slug, $name, $po) {
    return $this->doRequest('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
-     'content' => json_encode($source_strings),
-     'i18n_type' => 'KEYVALUEJSON'
+     'content' => $po,
+     'i18n_type' => 'PO'
    ));
  }
 
@@ -60,10 +60,6 @@ class TransifexApi {
  }
 
 }
-
-
-
-
 
 /**
  * @file
@@ -125,6 +121,11 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return TRUE;
   }
 
+  private function renderPO($label, $text) {
+    return "msgid \"" . $label . "\"\nmsgstr \"" . str_replace("\n","\\n",$text) . "\"\n\n";
+  }
+
+
   /**
    * Implements TMGMTTranslatorPluginControllerInterface::requestTranslation().
    */
@@ -138,31 +139,27 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
     foreach ($data as $tjiid => $value) {
       $tji = entity_load_single('tmgmt_job_item', $tjiid);
-      if (!isset($payloads[$tji->item_id])) {
-        $payloads[$tji->item_id] = array(
-          "title" => '',
-          "po" => ''
-        );
-      }
-
-      if ($value['#label'] == 'Title') {
-        $payloads[$tji->item_id]['title'] = $value['#text'];
-      }
-
-      $payloads[$tji->item_id]['po'] .= "msgid \"" . $value['#label'] . "\"\n";
-      $payloads[$tji->item_id]['po'] .= "msgstr \"" . $value['#text'] . "\"\n";
+      if (!isset($payloads[$tji->item_id])) $payloads[$tji->item_id] = array();
+      $payloads[$tji->item_id][$value['#label']] = $value['#text'];
     }
 
     foreach ($payloads as $node_id => $payload) {
       $slug = $translator->getSetting('project') . '_' . $node_id;
-      dpm($payload);
-      //dpm($tx->createResource($slug, $payload['Title'], $payload));
-    }
 
-    // The translation job has been successfully submitted.
+      $title = $payload['Title'];
+      $po = $this->renderPO('Title', $payload['Title']);
+      unset($payload['Title']);
+
+      $po .= $this->renderPO('Body', $payload['Body']);
+      unset($payload['Body']);
+
+      foreach ($payload as $label => $value) {
+        $po .= $this->renderPO($label, $value);
+      }
+
+      dpm($tx->createResource($slug, $title, $po));
+    }
     // $job->submitted('The translation job has been submitted.');
-    // Save the translated data through the job.
-    //$job->addTranslatedData(tmgmt_unflatten_data($translation));
   }
 
   /**
