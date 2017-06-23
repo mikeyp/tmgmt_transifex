@@ -10,9 +10,7 @@ class TransifexApi {
   function doRequest($method, $url, $data=NULL, $headers = array()) {
     $data_string = json_encode($data);
     $url = join('', array(
-      'https://www.transifex.com',
-      '/api/2/project/',
-      $this->translator->getSetting('project') . '/',
+      'https://www.transifex.com/api/2/',
       $url
     ));
     $ch = curl_init($url);
@@ -32,31 +30,40 @@ class TransifexApi {
     }
     curl_close($ch);
     return $response;
- }
+  }
 
- function createResource($slug, $name, $po) {
-   return $this->doRequest('POST', 'resources', array(
+  function doRequestToProject($method, $url, $data=NULL, $headers = array()) {
+    $data_string = json_encode($data);
+    $url = join('', array(
+      'project/',
+      $this->translator->getSetting('project') . '/',
+      $url
+    ));
+    return $this->doRequest($method, $url, $data, $headers);
+  }
+
+  function createResource($slug, $name, $po) {
+    return $this->doRequestToProject('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
      'content' => $po,
      'i18n_type' => 'PO'
    ));
- }
+  }
 
- function updateResource($slug, $name, $po) {
-   return $this->doRequest('PUT', 'resource/' . $slug, array(
-     'name' => $name,
-     'content' => $po,
-     'i18n_type' => 'PO'
-   ));
- }
+  function updateResource($slug, $name, $po) {
+    return $this->doRequestToProject('PUT', 'resource/' . $slug, array(
+      'name' => $name,
+      'content' => $po,
+      'i18n_type' => 'PO'
+    ));
+  }
 
-
- function upsertResource($name, $slug, $content) {
+  function upsertResource($name, $slug, $content) {
     $ret = json_decode($this->createResource($name, $slug, $content));
     if (!ret) return $this->updateResource($name, $slug, $content);
     return $ret;
- }
+  }
 
 }
 
@@ -176,8 +183,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
   public function getTransifexProject(TMGMTTranslator $translator) {
     $tx = new TransifexApi($translator);
-    $request = $tx->doRequest('GET', '' . $translator->getSetting('project'));
-    dpm($request);
+    $request = $tx->doRequestToProject('GET', '');
     return json_decode($request);
   }
 
