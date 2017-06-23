@@ -39,6 +39,14 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
       '#description' => t('Please enter the target project, should exist in Transifex'),
     );
+    $form['segment'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Segment body string into sentences.'),
+      '#default_value' => $translator->getSetting('segment'),
+      '#required' => TRUE,
+      '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
+      '#description' => t('Break up long body texts into sentences, so you get to use your TM'),
+    );
     return parent::pluginSettingsForm($form, $form_state, $translator);
   }
 

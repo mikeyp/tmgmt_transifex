@@ -1,5 +1,8 @@
 <?php
 
+include 'utils/segment.php';
+
+
 class TransifexApi {
   var $translator;
 
@@ -156,16 +159,25 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       $po = $this->renderPO('Title', $payload['Title']);
       unset($payload['Title']);
 
-      $po .= $this->renderPO('Body', $payload['Body']);
-      unset($payload['Body']);
+      if ($translator->getSetting('segment')) {
+        $Sentence	= new Sentence;
+        $sentences	= $Sentence->split($payload['Body']);
 
+        foreach ($sentences as $count => $sentence) {
+          $po .= $this->renderPO('Body' . $count, $sentence);
+        }
+      } else {
+        $po .= $this->renderPO('Body', $payload['Body']);
+      }
+
+      unset($payload['Body']);
       foreach ($payload as $label => $value) {
         $po .= $this->renderPO($label, $value);
       }
-
-      dpm($tx->createResource($slug, $title, $po));
+      $res = $tx->createResource($slug, $title, $po);
+      if ($res) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
     }
-    // $job->submitted('The translation job has been submitted.');
+    $job->submitted('The translation job has been submitted.');
   }
 
   /**
