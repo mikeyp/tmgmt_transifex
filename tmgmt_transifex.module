@@ -44,3 +44,29 @@ function tmgmt_transifex_plugin_settings_form_validate($element, &$form_state, $
     form_error($element, t('The "Transifex API Key" is not valid or the target transifex project does not exist.'));
   }
 }
+
+/**
+ * Implements hook_menu().
+ */
+function tmgmt_transifex_menu() {
+  $items['tmgmt_transifex/webhook'] = array(
+    'title' => 'Transifex webhook',
+    'page callback' => 'tmgmt_transifex_validate_webhook',
+    'access callback' => TRUE,
+  );
+  return $items;
+}
+
+/**
+ * Page callback for /hello.
+ */
+function tmgmt_transifex_validate_webhook() {
+  $http_verb = 'POST';
+  $http_url_path = drupal_get_http_header('Http-X-Tx-Url');
+  $http_gmt_date = drupal_get_http_header('Http-Date');
+  $content_md5 = md5($_POST['content']);
+  $msg = join('\n', ['POST', http_url_path, http_gmt_date, content_md5]);
+  $sig = hash_hmac('sha256', $msg, '12345' );
+  watchdog('tmgmt_transifex', join('\n', [$sig, drupal_get_http_header('Http-X-Tx-Signature-V2')]));
+  return drupal_json_output($data);
+}
