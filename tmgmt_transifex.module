@@ -58,15 +58,44 @@ function tmgmt_transifex_menu() {
 }
 
 /**
- * Page callback for /hello.
+ * Page callback; GutHub WebHook endpoint.
  */
 function tmgmt_transifex_validate_webhook() {
+  $received_json = file_get_contents("php://input",  TRUE);
+  $json = drupal_json_decode($received_json, TRUE);
   $http_verb = 'POST';
-  $http_url_path = drupal_get_http_header('Http-X-Tx-Url');
-  $http_gmt_date = drupal_get_http_header('Http-Date');
-  $content_md5 = md5($_POST['content']);
-  $msg = join('\n', ['POST', http_url_path, http_gmt_date, content_md5]);
-  $sig = hash_hmac('sha256', $msg, '12345' );
-  watchdog('tmgmt_transifex', join('\n', [$sig, drupal_get_http_header('Http-X-Tx-Signature-V2')]));
-  return drupal_json_output($data);
+  $webhook_sig = $_SERVER['HTTP_X_TX_SIGNATURE_V2'];
+  $http_url_path = $_SERVER['HTTP_X_TX_URL'];
+  $http_gmt_date = $_SERVER['HTTP_HTTP_DATE'];
+  $content_md5 = md5($received_json);
+  $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
+  $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
+
+  print_r($sig . '<br/>');
+  print_r($webhook_sig . '</br>');
+  print_r('ggg:' . ($sig == $webhook_sig) );
+  //if (strcmp($sig, $webhook_sig)) echo 'valid';
+  //echo 'invalid';
+}
+
+function github_webhook_payload() {
+  $payload = &drupal_static(__FUNCTION__);
+  if (NULL === $payload) {
+    $payload = (isset($_POST['payload'])) ? drupal_json_decode($_POST['payload']) : array();
+  }
+  return $payload;
+}
+
+/**
+ * Delivery callback; Convets the array to JSON and returns.
+ *
+ * @param array $page_callback_result
+ *   The result of a page callback. The array is simply converted to JSON, which
+ *   is the rendered output of the page request.
+ */
+function tmgmt_webhook_json_deliver(array $page_callback_result) {
+  drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
+  print drupal_json_encode($page_callback_result);
+  module_invoke_all('exit');
+  drupal_session_commit();
 }
