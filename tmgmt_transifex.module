@@ -70,12 +70,13 @@ function tmgmt_transifex_validate_webhook() {
   $content_md5 = md5($received_json);
   $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
-
-  print_r($sig . '<br/>');
-  print_r($webhook_sig . '</br>');
-  print_r('ggg:' . ($sig == $webhook_sig) );
-  //if (strcmp($sig, $webhook_sig)) echo 'valid';
-  //echo 'invalid';
+  if ($sig == $webhook_sig) {
+    $tjid = explode('_', $json['resource']);
+    $tjid = $tjid[sizeof($tjid) - 1];
+    echo $tjid;
+  } else {
+    echo 'Invalid webhook';
+  }
 }
 
 function github_webhook_payload() {

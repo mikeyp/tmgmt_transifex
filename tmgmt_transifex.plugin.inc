@@ -68,6 +68,12 @@ class TransifexApi {
     return $ret;
   }
 
+  function getTranslations($slug, $language) {
+    return json_decode(
+      $this->doRequestToProject('GET', 'resource/$slug/translations/$language')
+    );
+  }
+
 }
 
 /**
@@ -146,18 +152,20 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $tx = new TransifexApi($translator);
     $payloads = array();
 
+
     foreach ($data as $tjiid => $value) {
       $tji = entity_load_single('tmgmt_job_item', $tjiid);
       if (!isset($payloads[$tji->item_id])) $payloads[$tji->item_id] = array();
       $payloads[$tji->item_id][$value['#label']] = $value['#text'];
+      $payloads[$tji->item_id]['tjid'] = $job->tjid;
     }
 
     foreach ($payloads as $node_id => $payload) {
-      $slug = $translator->getSetting('project') . '_' . $node_id;
-
+      $slug = $translator->getSetting('project') . '_' . $payload['tjid'] . '_' . $node_id;
       $title = $payload['Title'];
       $po = $this->renderPO('Title', $payload['Title']);
       unset($payload['Title']);
+      unset($payload['tjid']);
 
       if ($translator->getSetting('segment')) {
         $Sentence	= new Sentence;
@@ -175,9 +183,10 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
         $po .= $this->renderPO($label, $value);
       }
       $res = $tx->createResource($slug, $title, $po);
-      if ($res) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
+
+      if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
     }
-    $job->submitted('The translation job has been submitted.');
+    $job->submitted('The translation job has been submitted to Transifex.');
   }
 
   /**
