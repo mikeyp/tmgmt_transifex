@@ -73,7 +73,17 @@ function tmgmt_transifex_validate_webhook() {
   if ($sig == $webhook_sig) {
     $tjid = explode('_', $json['resource']);
     $tjid = $tjid[sizeof($tjid) - 1];
-    echo $tjid;
+    try {
+      $job = tmgmt_job_load($job_id);
+    }
+    catch (Exception $e) {
+      watchdog_exception('tmgmt_transifex', $e);
+      drupal_add_http_header('Status', '500 Internal Server Error');
+      print format_string('An exception was thrown during loading job @job_id. Details are available in the log. Approximate timestamp: @time', array('@job_id' => $job_id, '@time' => time()));
+      return;
+    }
+    $translator = $job->$translator;
+    echo $translator;
   } else {
     echo 'Invalid webhook';
   }

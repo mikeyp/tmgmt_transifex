@@ -45,26 +45,37 @@ class TransifexApi {
     return $this->doRequest($method, $url, $data, $headers);
   }
 
-  function createResource($slug, $name, $po) {
+  function getResource($slug) {
+    return $this->doRequestToProject('GET', 'resource/$slug');
+  }
+
+  function createResource($slug, $name, $tjid, $po) {
     return $this->doRequestToProject('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
      'content' => $po,
-     'i18n_type' => 'PO'
+     'i18n_type' => 'PO',
+     'category' => 'tjid:' . $tjid
    ));
   }
 
-  function updateResource($slug, $name, $po) {
+  function updateResource($slug, $name, $tjid, $po) {
     return $this->doRequestToProject('PUT', 'resource/' . $slug, array(
       'name' => $name,
       'content' => $po,
-      'i18n_type' => 'PO'
+      'i18n_type' => 'PO',
+      'categories' => 'tjid:' . $tjid
     ));
   }
 
-  function upsertResource($name, $slug, $content) {
+  function upsertResource($slug, $name, $tjid, $content) {
     $ret = json_decode($this->createResource($name, $slug, $content));
-    if (!ret) return $this->updateResource($name, $slug, $content);
+    if (!ret) {
+      $ret = $this->getResource($slug);
+      echo $ret;
+      return;
+      return $this->updateResource($slug, $ret);
+    }
     return $ret;
   }
 
@@ -161,12 +172,14 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     }
 
     foreach ($payloads as $node_id => $payload) {
-      $slug = $translator->getSetting('project') . '_' . $payload['tjid'] . '_' . $node_id;
+      $slug = $translator->getSetting('project') . '_' . $node_id;
+
       $title = $payload['Title'];
-      $po = $this->renderPO('Title', $payload['Title']);
       unset($payload['Title']);
+      $tjid = $payload['tjid'];
       unset($payload['tjid']);
 
+      $po = $this->renderPO('Title', $title);
       if ($translator->getSetting('segment')) {
         $Sentence	= new Sentence;
         $sentences	= $Sentence->split($payload['Body']);
@@ -182,7 +195,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       foreach ($payload as $label => $value) {
         $po .= $this->renderPO($label, $value);
       }
-      $res = $tx->createResource($slug, $title, $po);
+      $res = $tx->createResource($slug, $title, $tjid, $po);
 
       if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
     }
