@@ -63,6 +63,9 @@ function tmgmt_transifex_menu() {
 function tmgmt_transifex_validate_webhook() {
   $received_json = file_get_contents("php://input",  TRUE);
   $json = drupal_json_decode($received_json, TRUE);
+
+  $translator = tmgmt_translator_load('transifex');
+  $tx = new TransifexApi($translator);
   $http_verb = 'POST';
   $webhook_sig = $_SERVER['HTTP_X_TX_SIGNATURE_V2'];
   $http_url_path = $_SERVER['HTTP_X_TX_URL'];
@@ -71,19 +74,8 @@ function tmgmt_transifex_validate_webhook() {
   $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
   if ($sig == $webhook_sig) {
-    $tjid = explode('_', $json['resource']);
-    $tjid = $tjid[sizeof($tjid) - 1];
-    try {
-      $job = tmgmt_job_load($job_id);
-    }
-    catch (Exception $e) {
-      watchdog_exception('tmgmt_transifex', $e);
-      drupal_add_http_header('Status', '500 Internal Server Error');
-      print format_string('An exception was thrown during loading job @job_id. Details are available in the log. Approximate timestamp: @time', array('@job_id' => $job_id, '@time' => time()));
-      return;
-    }
-    $translator = $job->$translator;
-    echo $translator;
+    $res = $tx->getResource('drupal-2_29/');
+    echo $res;
   } else {
     echo 'Invalid webhook';
   }
