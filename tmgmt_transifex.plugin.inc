@@ -47,7 +47,11 @@ class TransifexApi {
   }
 
   function getResource($slug) {
-    return $this->doRequestToProject('GET', 'resource/' . $slug);
+    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug));
+  }
+
+  function getTranslations($slug, $lang) {
+    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang  . "/strings"));
   }
 
   function createResource($slug, $name, $tjid, $po) {
@@ -76,12 +80,6 @@ class TransifexApi {
 //      return $this->updateResource($slug, $ret);
     }
     return $ret;
-  }
-
-  function getTranslations($slug, $language) {
-    return json_decode(
-      $this->doRequestToProject('GET', 'resource/$slug/translations/$language')
-    );
   }
 
 }
