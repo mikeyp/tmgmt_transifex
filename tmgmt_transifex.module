@@ -74,16 +74,40 @@ function tmgmt_transifex_validate_webhook() {
   $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
   if ($sig == $webhook_sig) {
+    // Change array of objects to hashmap
+    $translations = array_reduce($tx->getTranslations('drupal-2_29', 'af'), function ($result, $item) {
+      $result[$item->key] = $item->translation;
+      return $result;
+    }, array());
+    // Prepare translation payload for body
+    $body = '';
+    $bodyCount = 0;
+    echo json_encode($translations);
+
+    while ($translations['Body' . $bodyCount]) {
+      $body .= $translations['Body' . $bodyCount];
+      unset($translations['Body' . $bodyCount]);
+      $bodyCount += 1;
+    }
+
+    $translated = array();
+    $translated['Body']['#text'] = $body;
+
+    foreach ($translations as $key => $value) {
+      $translated[$key]['#text'] = $value;
+    }
+
+    echo json_encode($translated);
+
+    /*
     foreach ($tx->getResource('drupal-2_29/')->categories as $category) {
-      preg_match("/tjid:(.*)/", $category, $tjid );
+      preg_match('/tjid:(.*)/', $category, $tjid);
       if ($tjid[1]) {
         $tjid = $tjid[1];
-        echo $tjid;
+
       }
-    }
-    foreach ($tx->getTranslations('drupal-2_29', 'af') as $translation) {
-      // echo '<br/>' . json_encode($translation);
-    }
+    }*/
+
   } else {
     echo 'Invalid webhook';
   }

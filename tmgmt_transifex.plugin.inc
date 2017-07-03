@@ -42,7 +42,6 @@ class TransifexApi {
       $this->translator->getSetting('project') . '/',
       $url
     ));
-    echo $url;
     return $this->doRequest($method, $url, $data, $headers);
   }
 
