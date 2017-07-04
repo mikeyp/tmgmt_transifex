@@ -74,6 +74,25 @@ function tmgmt_transifex_validate_webhook() {
   $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
 
+  $translations = array_reduce($tx->getTranslations('drupal-2_52', 'af'), function ($result, $item) {
+    $result[$item->key] = $item->translation;
+    return $result;
+  }, array());
+  $job = tmgmt_job_load(47);
+  // echo json_encode($job->getItems());
+
+
+
+  return;
+
+  $translation['body'][0]['#text'] = 'Translation af body';
+  $translation['node_title']['#text'] = 'Translation af node_title';
+  $job->addTranslatedData(tmgmt_unflatten_data(array("838" => $translation)));
+
+  echo json_encode($job->getItems());
+
+
+  return;
   if ($sig == $webhook_sig) {
     // Change array of objects to hashmap
     $translations = array_reduce($tx->getTranslations('drupal-2_52', 'af'), function ($result, $item) {

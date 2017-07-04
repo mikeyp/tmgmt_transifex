@@ -148,6 +148,32 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
   }
 
 
+  public function extractStringsFromNode(TMGMTJobItem $job_item) {
+    $translation_payload = array();
+    $translator = $job_item->getTranslator();
+    foreach ($job_item->data as $fieldName => $value ) {
+      if (isset($value['#text'])) { // Single property field
+        $translation_payload[$fieldName] = $value['#text'];
+      } else { // Multi property field
+        $propCount = 0;
+        while (isset($value[$propCount])) {
+          if ($fieldName == 'body' && $translator->getSetting('segment')) {
+            $Sentence	= new Sentence;
+            $sentence_count = 0;
+            foreach ($Sentence->split($value[$propCount]['value']['#text']) as $sentence) {
+              $translation_payload[$fieldName . '_' . $propCount . '_sentence_' . $sentence_count] = $sentence;
+              $sentence_count++;
+            }
+          } else {
+            $translation_payload[$fieldName . '_' . $propCount] = $value[$propCount]['value']['#text'];
+          }
+          $propCount++;
+        }
+      }
+    }
+    return $translation_payload;
+  }
+
   /**
    * Implements TMGMTTranslatorPluginControllerInterface::requestTranslation().
    */
@@ -157,15 +183,15 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $translation = array();
     $translator = $job->getTranslator();
     $tx = new TransifexApi($translator);
+
+
     $payloads = array();
-
-
-    foreach ($data as $tjiid => $value) {
-      $tji = entity_load_single('tmgmt_job_item', $tjiid);
-      if (!isset($payloads[$tji->item_id])) $payloads[$tji->item_id] = array();
-      $payloads[$tji->item_id][$value['#label']] = $value['#text'];
-      $payloads[$tji->item_id]['tjid'] = $job->tjid;
+    foreach ($job->getItems() as $job_item) {
+      $payloads[$job_item->item_id] = $this->extractStringsFromNode($job_item);
     }
+
+    dpm($payloads);
+    return;
 
     foreach ($payloads as $node_id => $payload) {
       $slug = $translator->getSetting('project') . '_' . $node_id;
