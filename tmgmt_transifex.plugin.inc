@@ -157,22 +157,44 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       } else { // Multi property field
         $propCount = 0;
         while (isset($value[$propCount])) {
-          if ($fieldName == 'body' && $translator->getSetting('segment')) {
-            $Sentence	= new Sentence;
-            $sentence_count = 0;
-            foreach ($Sentence->split($value[$propCount]['value']['#text']) as $sentence) {
-              $translation_payload[$fieldName . '_' . $propCount . '_sentence_' . $sentence_count] = $sentence;
-              $sentence_count++;
-            }
-          } else {
-            $translation_payload[$fieldName . '_' . $propCount] = $value[$propCount]['value']['#text'];
-          }
+          $translation_payload[$fieldName . '_' . $propCount] = $value[$propCount]['value']['#text'];
           $propCount++;
         }
       }
     }
     return $translation_payload;
   }
+
+  public function renderPOFromStrings($strings, $segment) {
+    $po = '';
+    // Get title
+    if (isset($strings['node_title'])) {
+      $po .= $this->renderPO('node_title', $strings['node_title']);
+      unset($strings['node_title']);
+    }
+    // Get body and segment
+    $bodyCount = 0;
+    while (isset($strings['body_' . $bodyCount])) {
+      if ($segment) {
+        $Sentence	= new Sentence;
+        $sentence_count = 0;
+        foreach ($Sentence->split($strings['body_' . $bodyCount]) as $sentence) {
+          $po .= $this->renderPO('body_' . $bodyCount . '_sentence_' . $sentence_count, $sentence);
+          $sentence_count++;
+        }
+        unset($strings['body_' . $bodyCount]);
+      } else {
+        $po .= $this->renderPO('body_' . $bodyCount, $strings['body_' . $bodyCount]);
+      }
+      $bodyCount++;
+    }
+    // Get the rest
+    foreach ($strings as $fieldName => $value) {
+      $po .= $this->renderPO($fieldName, $value);
+    }
+    return $po;
+  }
+
 
   /**
    * Implements TMGMTTranslatorPluginControllerInterface::requestTranslation().
@@ -187,7 +209,9 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
-      $payloads[$job_item->item_id] = $this->extractStringsFromNode($job_item);
+      $payloads[$job_item->item_id] = $this->renderPOFromStrings(
+        $this->extractStringsFromNode($job_item)
+      , true);
     }
 
     dpm($payloads);
