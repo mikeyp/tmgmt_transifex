@@ -206,7 +206,6 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $translator = $job->getTranslator();
     $tx = new TransifexApi($translator);
 
-
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
       $strings = $this->extractStringsFromNode($job_item);

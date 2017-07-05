@@ -57,12 +57,16 @@ function tmgmt_transifex_menu() {
   return $items;
 }
 
+function transifex_prepare_translation($translations) {
+  return $translations;
+}
+
 /**
- * Page callback; GutHub WebHook endpoint.
+ * Page callback; gitHub WebHook endpoint.
  */
 function tmgmt_transifex_validate_webhook() {
   $received_json = file_get_contents("php://input",  TRUE);
-  $json = drupal_json_decode($received_json, TRUE);
+  $webhook = drupal_json_decode($received_json, TRUE);
 
   $translator = tmgmt_translator_load('transifex');
   $tx = new TransifexApi($translator);
@@ -74,63 +78,33 @@ function tmgmt_transifex_validate_webhook() {
   $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
 
-  $translations = array_reduce($tx->getTranslations('drupal-2_52', 'af'), function ($result, $item) {
-    $result[$item->key] = $item->translation;
-    return $result;
-  }, array());
-  $job = tmgmt_job_load(47);
-  // echo json_encode($job->getItems());
-
-
-
-  return;
-
-  $translation['body'][0]['#text'] = 'Translation af body';
-  $translation['node_title']['#text'] = 'Translation af node_title';
-  $job->addTranslatedData(tmgmt_unflatten_data(array("838" => $translation)));
-
-  echo json_encode($job->getItems());
-
-
-  return;
-  if ($sig == $webhook_sig) {
+  if (1 == 1) {// $sig == $webhook_sig) {
     // Change array of objects to hashmap
-    $translations = array_reduce($tx->getTranslations('drupal-2_52', 'af'), function ($result, $item) {
+    $translations = array_reduce($tx->getTranslations($webhook['resource'], $webhook['language']), function ($result, $item) {
       $result[$item->key] = $item->translation;
       return $result;
     }, array());
     // Prepare translation payload for body
     $body = '';
     $bodyCount = 0;
+    $node_id = intval(end(explode('_', $webhook['resource'])));
 
-    while (isset($translations['Body' . $bodyCount])) {
-      $body .= $translations['Body' . $bodyCount];
-      $bodyCount += 1;
-    }
-
-    $translated = array();
-    $translated['body'][0]['#text'] = $body;
-
-
-    foreach ($translations as $key => $value) {
-      if (strpos($key, 'Body') !== 0) $translated[$key]['#text'] = $value;
-    }
-
-    foreach ($tx->getResource('drupal-2_52/')->categories as $category) {
+    foreach ($tx->getResource($webhook['resource'])->categories as $category) {
       preg_match('/tjid:(.*)/', $category, $tjid);
       if ($tjid[1]) {
-        $tjid = $tjid[1];
-        $job = tmgmt_job_load(intval($tjid));
-        echo   json_encode($job->getData());
-        foreach ($job->getItems() as $job_item) {
-          if ($job_item->item_id == 52) {
-            // echo json_encode($translated);
-            echo $job_item->addTranslatedData(tmgmt_unflatten_data($translated));
+        $tjid = intval($tjid[1]);
+        $job = tmgmt_job_load($tjid);
+        foreach ($job->getItems() as $tjiid => $job_item) {
+          if ($job_item->item_id == $node_id) {
+            $job_item->addTranslatedData(
+              tmgmt_unflatten_data(
+                transifex_prepare_translation($translations)
+              )
+            );
           }
         }
       }
     }
-
   } else {
     echo 'Invalid webhook';
   }
