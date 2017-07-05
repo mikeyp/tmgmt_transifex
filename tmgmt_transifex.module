@@ -58,7 +58,29 @@ function tmgmt_transifex_menu() {
 }
 
 function transifex_prepare_translation($translations) {
-  return $translations;
+  $payload = array();
+  $keys = array_keys($translations);
+  $bodyCount = 0;
+  while (in_array('body_' . $bodyCount, $keys) || in_array('body_' . $bodyCount . '_sentence_0', $keys)) {
+    if (in_array('body_' . $bodyCount, $keys)) { // Non segmented body
+      $payload['body'][$bodyCount]['#text'] = $translations['body_' . $bodyCount];
+      unset($translations['body_' . $bodyCount]);
+    } else { // Segmented case - recompose
+      $composed = '';
+      $sentence_count = 0;
+      while (isset($translations['body_' . $bodyCount . '_sentence_' . $sentence_count])) {
+        $composed .= $translations['body_' . $bodyCount . '_sentence_' . $sentence_count];
+        unset($translations['body_' . $bodyCount . '_sentence_' . $sentence_count]);
+        $sentence_count++;
+      }
+      $payload['body'][$bodyCount]['#text'] = $composed;
+      $bodyCount++;
+      $keys = array_keys($translations);
+
+    }
+  }
+  echo json_encode($payload);
+
 }
 
 /**
