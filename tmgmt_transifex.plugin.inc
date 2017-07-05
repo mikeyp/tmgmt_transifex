@@ -209,41 +209,14 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
-      $payloads[$job_item->item_id] = $this->renderPOFromStrings(
-        $this->extractStringsFromNode($job_item)
-      , true);
-    }
-
-    dpm($payloads);
-    return;
-
-    foreach ($payloads as $node_id => $payload) {
-      $slug = $translator->getSetting('project') . '_' . $node_id;
-
-      $title = $payload['Title'];
-      unset($payload['Title']);
-      $tjid = $payload['tjid'];
-      unset($payload['tjid']);
-
-      $po = $this->renderPO('Title', $title);
-      if ($translator->getSetting('segment')) {
-        $Sentence	= new Sentence;
-        $sentences	= $Sentence->split($payload['Body']);
-
-        foreach ($sentences as $count => $sentence) {
-          $po .= $this->renderPO('Body' . $count, $sentence);
-        }
-      } else {
-        $po .= $this->renderPO('Body', $payload['Body']);
-      }
-
-      unset($payload['Body']);
-      foreach ($payload as $label => $value) {
-        $po .= $this->renderPO($label, $value);
-      }
-      $res = $tx->createResource($slug, $title, $tjid, $po);
-
-      if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
+      $strings = $this->extractStringsFromNode($job_item);
+      $po = $this->renderPOFromStrings(
+        $strings,
+        $translator->getSetting('segment')
+      );
+      $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
+      $res = $tx->createResource($slug, $strings['node_title'], $job->tjid, $po);
+      if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $strings['node_title']);
     }
     $job->submitted('The translation job has been submitted to Transifex.');
   }
