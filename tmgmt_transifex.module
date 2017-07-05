@@ -61,6 +61,7 @@ function transifex_prepare_translation($translations) {
   $payload = array();
   $keys = array_keys($translations);
   $bodyCount = 0;
+  // Deal with the bodies
   while (in_array('body_' . $bodyCount, $keys) || in_array('body_' . $bodyCount . '_sentence_0', $keys)) {
     if (in_array('body_' . $bodyCount, $keys)) { // Non segmented body
       $payload['body'][$bodyCount]['#text'] = $translations['body_' . $bodyCount];
@@ -73,14 +74,22 @@ function transifex_prepare_translation($translations) {
         unset($translations['body_' . $bodyCount . '_sentence_' . $sentence_count]);
         $sentence_count++;
       }
-      $payload['body'][$bodyCount]['#text'] = $composed;
+      $payload['body'][$bodyCount]['value']['#text'] = $composed;
       $bodyCount++;
       $keys = array_keys($translations);
-
     }
   }
-  echo json_encode($payload);
-
+  // Deal with the rest
+  foreach ($translations as $key => $translation) {
+    if (intval(end(explode('_', $key)))) { // Multi field
+      $ind = intval(end(explode('_', $key)));
+      $key = preg_replace('/_' . $ind . '$/', '', $key);
+      $payload[$key][$ind]['#text'] = $translation;
+    } else { // Single field
+      $payload[$key]['#text'] = $translation;
+    }
+  }
+  return $payload;
 }
 
 /**
@@ -118,10 +127,8 @@ function tmgmt_transifex_validate_webhook() {
         $job = tmgmt_job_load($tjid);
         foreach ($job->getItems() as $tjiid => $job_item) {
           if ($job_item->item_id == $node_id) {
-            $job_item->addTranslatedData(
-              tmgmt_unflatten_data(
-                transifex_prepare_translation($translations)
-              )
+            $job->addTranslatedData(
+              array($tjiid => transifex_prepare_translation($translations))
             );
           }
         }
