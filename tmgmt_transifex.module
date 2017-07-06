@@ -81,11 +81,9 @@ function transifex_prepare_translation($translations) {
   }
   // Deal with the rest
   foreach ($translations as $key => $translation) {
-    if (intval(end(explode('_', $key)))) { // Multi field
-      $ind = intval(end(explode('_', $key)));
-      $key = preg_replace('/_' . $ind . '$/', '', $key);
-      $payload[$key][$ind]['#text'] = $translation;
-    } else { // Single field
+    if (preg_match('/(.*)_(\d+)$/', $key, $matches)) {
+      $payload[$matches[1]][$matches[2]]['value']['#text'] = $translation;
+    } else {
       $payload[$key]['#text'] = $translation;
     }
   }
@@ -127,6 +125,7 @@ function tmgmt_transifex_validate_webhook() {
         $job = tmgmt_job_load($tjid);
         foreach ($job->getItems() as $tjiid => $job_item) {
           if ($job_item->item_id == $node_id) {
+            //echo json_encode($job_item);
             $job->addTranslatedData(
               array($tjiid => transifex_prepare_translation($translations))
             );
