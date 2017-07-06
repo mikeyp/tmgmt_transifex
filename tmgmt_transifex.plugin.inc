@@ -67,16 +67,16 @@ class TransifexApi {
     return $this->doRequestToProject('PUT', 'resource/' . $slug, array(
       'name' => $name,
       'content' => $po,
-      'i18n_type' => 'PO',
-      'categories' => 'tjid:' . $tjid
+      'categories' => $tjid
     ));
   }
 
   function upsertResource($slug, $name, $tjid, $content) {
-    $ret = json_decode($this->createResource($name, $slug, $content));
-    if (!ret) {
+    $ret = json_decode($this->createResource($name, $slug, $tjid, $content));
+    if (!isset($ret)) {
       $ret = $this->getResource($slug);
-//      return $this->updateResource($slug, $ret);
+      $ret->categories[] = 'tjid:' . $tjid;
+      return $this->updateResource($slug, $name, $ret->categories, $content);
     }
     return $ret;
   }
@@ -172,6 +172,11 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       $po .= $this->renderPO('node_title', $strings['node_title']);
       unset($strings['node_title']);
     }
+    // Get title in case of title module active
+    if (isset($strings['title_field_0'])) {
+      $po .= $this->renderPO('title_field_0', $strings['title_field_0']);
+      unset($strings['title_field_0']);
+    }
     // Get body and segment
     $bodyCount = 0;
     while (isset($strings['body_' . $bodyCount])) {
@@ -214,8 +219,13 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
         $translator->getSetting('segment')
       );
       $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
-      $res = $tx->createResource($slug, $strings['node_title'], $job->tjid, $po);
-      if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $strings['node_title']);
+      if (isset($strings['node_title'])) { // Handle using the Title module for translatable titles
+        $title = $strings['node_title'];
+      } else {
+        $title = $strings['title_field_0'];
+      }
+      $res = $tx->upsertResource($slug, $title, $job->tjid, $po);
+      if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
     }
     $job->submitted('The translation job has been submitted to Transifex.');
   }
