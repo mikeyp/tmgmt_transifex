@@ -71,12 +71,12 @@ class TransifexApi {
     ));
   }
 
-  function upsertResource($slug, $name, $tjid, $content) {
-    $ret = $this->createResource($slug, $name, $tjid, $content);
+  function upsertResource($slug, $name, $tjid, $po) {
+    $ret = $this->createResource($slug, $name, $tjid, $po);
     if (!isset($ret)) {
       $ret = $this->getResource($slug);
       $ret->categories[] = 'tjid:' . $tjid;
-      return $this->updateResource($slug, $name, $ret->categories, $content);
+      return $this->updateResource($slug, $name, $ret->categories, $po);
     }
     return $ret;
   }
@@ -225,10 +225,13 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
         $title = $strings['title_field_0'];
       }
       $res = $tx->upsertResource($slug, $title, $job->tjid, $po);
-      dpm($res);
-      if (json_decode($res)) dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
+      if (json_decode($res)) {
+        dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
+        $job->submitted('The translation job has been submitted to Transifex.');
+      } else {
+        dpm($res);
+      }
     }
-    $job->submitted('The translation job has been submitted to Transifex.');
   }
 
   /**

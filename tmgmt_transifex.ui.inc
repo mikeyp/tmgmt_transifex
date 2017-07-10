@@ -50,4 +50,28 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
     return parent::pluginSettingsForm($form, $form_state, $translator);
   }
 
+  /**
+   * Specifies interface to poll translations and resubmit source text.
+   *
+   * @return an associative array of UI items to display on the management page
+   *         for the given translation job, under the heading "Translation
+   *         Information".
+   */
+  public function checkoutInfo(TMGMTJob $job) {
+    /* TODO show last known translation statistics overall and per node */
+
+    $info['actions'] = array('#type' => 'actions');
+
+    if ($job->isActive()) {
+      $info['actions']['poll'] = array(
+        '#type' => 'submit',
+        '#value' => t('Check for updates'),
+        '#description' => t('Check for updated translations on the Zanata server.'),
+        '#submit' => array('tmgmt_transifex_poll_translations'),
+      );
+    }
+
+    return $info;
+  }
+
 }

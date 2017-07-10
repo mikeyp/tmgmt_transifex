@@ -108,32 +108,40 @@ function tmgmt_transifex_validate_webhook() {
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
 
   if (1 == 1) {// $sig == $webhook_sig) {
-    // Change array of objects to hashmap
-    $translations = array_reduce($tx->getTranslations($webhook['resource'], $webhook['language']), function ($result, $item) {
-      $result[$item->key] = $item->translation;
-      return $result;
-    }, array());
-    // Prepare translation payload for body
-    $body = '';
-    $bodyCount = 0;
-    $node_id = intval(end(explode('_', $webhook['resource'])));
-
-    foreach ($tx->getResource($webhook['resource'])->categories as $category) {
-      preg_match('/tjid:(.*)/', $category, $tjid);
-      if ($tjid[1]) {
-        $tjid = intval($tjid[1]);
-        $job = tmgmt_job_load($tjid);
-        foreach ($job->getItems() as $tjiid => $job_item) {
-          if ($job_item->item_id == $node_id) {
-            //echo json_encode($job_item);
-            $job->addTranslatedData(
-              array($tjiid => transifex_prepare_translation($translations))
-            );
-          }
-        }
-      }
-    }
+    tmgmt_get_translations($tx, $webhook);
   } else {
     echo 'Invalid webhook';
   }
+}
+
+function tmgmt_get_translations($tx, $webhook) {
+  $translations = array_reduce($tx->getTranslations($webhook['resource'], $webhook['language']), function ($result, $item) {
+    $result[$item->key] = $item->translation;
+    return $result;
+  }, array());
+  // Prepare translation payload for body
+  $body = '';
+  $bodyCount = 0;
+  $node_id = intval(end(explode('_', $webhook['resource'])));
+
+  foreach ($tx->getResource($webhook['resource'])->categories as $category) {
+    preg_match('/tjid:(.*)/', $category, $tjid);
+    if ($tjid[1]) {
+      $tjid = intval($tjid[1]);
+      $job = tmgmt_job_load($tjid);
+      foreach ($job->getItems() as $tjiid => $job_item) {
+        if ($job_item->item_id == $node_id) {
+          //echo json_encode($job_item);
+          $job->addTranslatedData(
+            array($tjiid => transifex_prepare_translation($translations))
+          );
+        }
+      }
+    }
+  }
+}
+
+function tmgmt_transifex_poll_translations($element, $second) {
+  dpm($element);
+  dpm($second);
 }
