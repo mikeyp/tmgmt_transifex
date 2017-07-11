@@ -2,7 +2,6 @@
 
 include 'utils/segment.php';
 
-
 class TransifexApi {
   var $translator;
 
@@ -50,7 +49,7 @@ class TransifexApi {
   }
 
   function getTranslations($slug, $lang) {
-    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang  . "/strings"));
+    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang));
   }
 
   function createResource($slug, $name, $tjid, $po) {
@@ -58,7 +57,7 @@ class TransifexApi {
      'name' => $name,
      'slug' => $slug,
      'content' => $po,
-     'i18n_type' => 'PO',
+     'i18n_type' => 'HTML',
      'category' => 'tjid:' . $tjid
    ));
   }
@@ -147,6 +146,9 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return "msgid \"" . $label . "\"\nmsgstr \"" . str_replace("\n","\\n",$text) . "\"\n\n";
   }
 
+  private function renderHTML($label, $text) {
+    return "<div class=\"tx_string\" id=\"" . $label . "\">" . $text . "</div>";
+  }
 
   public function extractStringsFromNode(TMGMTJobItem $job_item) {
     $translation_payload = array();
@@ -200,6 +202,32 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return $po;
   }
 
+  public function renderHTMLFromStrings($strings) {
+    $html = '';
+    // Get title
+    if (isset($strings['node_title'])) {
+      $html .= $this->renderHTML('node_title', $strings['node_title']);
+      unset($strings['node_title']);
+    }
+    // Get title in case of title module active
+    if (isset($strings['title_field_0'])) {
+      $html .= $this->renderHTML('title_field_0', $strings['title_field_0']);
+      unset($strings['title_field_0']);
+    }
+    // Get body and segment
+    $bodyCount = 0;
+    while (isset($strings['body_' . $bodyCount])) {
+      $html .= $this->renderHTML('body_' . $bodyCount, $strings['body_' . $bodyCount]);
+      unset($strings['body_' . $bodyCount]);
+      $bodyCount++;
+    }
+    // Get the rest
+    foreach ($strings as $fieldName => $value) {
+      $html .= $this->renderHTML($fieldName, $value);
+    }
+    return $html;
+  }
+
 
   /**
    * Implements TMGMTTranslatorPluginControllerInterface::requestTranslation().
@@ -214,17 +242,14 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
       $strings = $this->extractStringsFromNode($job_item);
-      $po = $this->renderPOFromStrings(
-        $strings,
-        $translator->getSetting('segment')
-      );
+      $html = $this->renderHTMLFromStrings($strings);
       $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
       if (isset($strings['node_title'])) { // Handle using the Title module for translatable titles
         $title = $strings['node_title'];
       } else {
         $title = $strings['title_field_0'];
       }
-      $res = $tx->upsertResource($slug, $title, $job->tjid, $po);
+      $res = $tx->upsertResource($slug, $title, $job->tjid, $html);
       if (json_decode($res)) {
         dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
         $job->submitted('The translation job has been submitted to Transifex.');
