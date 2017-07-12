@@ -123,6 +123,22 @@ function tmgmt_get_translations($tx, $webhook) {
   foreach($results as $result) {
     $links[$result->getAttribute('id')] = $result->nodeValue;
   }
+  foreach ($tx->getResource($webhook['resource'])->categories as $category) {
+    preg_match('/tjid:(.*)/', $category, $tjid);
+    if ($tjid[1]) {
+      $tjid = intval($tjid[1]);
+      $job = tmgmt_job_load($tjid);
+      foreach ($job->getItems() as $tjiid => $job_item) {
+        if ($job_item->item_id == $node_id) {
+          //echo json_encode($job_item);
+          $job->addTranslatedData(
+            array($tjiid => transifex_prepare_translation($translations))
+          );
+        }
+      }
+    }
+  }
+
 }
 
 function tmgmt_transifex_poll_translations($element, $second) {

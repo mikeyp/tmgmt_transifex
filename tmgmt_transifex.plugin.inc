@@ -101,14 +101,6 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
   protected $translatorUrl = 'https://transifex.com/api/2';
 
   /**
-   * Authentication service URL.
-   *
-   * @var string
-   */
-  // protected $authUrl = 'https://transifex.com/api/2/user/login';
-  protected $authUrl =  'https://requestb.in/q2xje7q2';
-
-  /**
    * Maximum supported characters.
    *
    * @var int
@@ -142,90 +134,58 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return TRUE;
   }
 
-  private function renderPO($label, $text) {
-    return "msgid \"" . $label . "\"\nmsgstr \"" . str_replace("\n","\\n",$text) . "\"\n\n";
-  }
-
-  private function renderHTML($label, $text) {
-    return "<div class=\"tx_string\" id=\"" . $label . "\">" . $text . "</div>";
-  }
-
   public function extractStringsFromNode(TMGMTJobItem $job_item) {
     $translation_payload = array();
     $translator = $job_item->getTranslator();
     foreach ($job_item->data as $fieldName => $value ) {
-      if (isset($value['#text'])) { // Single property field
-        $translation_payload[$fieldName] = $value['#text'];
-      } else { // Multi property field
-        $propCount = 0;
-        while (isset($value[$propCount])) {
-          $translation_payload[$fieldName . '_' . $propCount] = $value[$propCount]['value']['#text'];
-          $propCount++;
+      $propCount = 0;
+      while (isset($value[$propCount])) {
+        if (in_array($value[$propCount]['format']['#text'], array('full_html', 'filtered_html'))) {
+          $translation_payload[] = array(
+            'key' => $fieldName . '_' . $propCount,
+            'value' => $value[$propCount]['value']['#text']
+          );
+        } else {
+          $Sentence	= new Sentence;
+          $sentence_count = 0;
+          $translation_payload[] = array(
+            'key' => $fieldName . '_' . $propCount,
+            'value' => $Sentence->split($value[$propCount]['value']['#text'])
+          );
         }
+        $propCount++;
       }
     }
     return $translation_payload;
   }
 
-  public function renderPOFromStrings($strings, $segment) {
-    $po = '';
-    // Get title
-    if (isset($strings['node_title'])) {
-      $po .= $this->renderPO('node_title', $strings['node_title']);
-      unset($strings['node_title']);
-    }
-    // Get title in case of title module active
-    if (isset($strings['title_field_0'])) {
-      $po .= $this->renderPO('title_field_0', $strings['title_field_0']);
-      unset($strings['title_field_0']);
-    }
-    // Get body and segment
-    $bodyCount = 0;
-    while (isset($strings['body_' . $bodyCount])) {
-      if ($segment) {
-        $Sentence	= new Sentence;
-        $sentence_count = 0;
-        foreach ($Sentence->split($strings['body_' . $bodyCount]) as $sentence) {
-          $po .= $this->renderPO('body_' . $bodyCount . '_sentence_' . $sentence_count, $sentence);
-          $sentence_count++;
-        }
-        unset($strings['body_' . $bodyCount]);
-      } else {
-        $po .= $this->renderPO('body_' . $bodyCount, $strings['body_' . $bodyCount]);
+  private function renderHTML($label, $text) {
+    if (!is_array($text)) {
+      return "<div class=\"tx_string\" id=\"" . $label . "\">" . $text . "</div>";
+    } else {
+      $ret = "<div class=\"tx_string_segmented\" id=\"" . $label . "\">";
+      foreach ($text as $sentence) {
+        $ret .= "<div class=\"tx_string_sentence\">" . $sentence . '</div>';
       }
-      $bodyCount++;
+      return $ret . "</div>";
     }
-    // Get the rest
-    foreach ($strings as $fieldName => $value) {
-      $po .= $this->renderPO($fieldName, $value);
-    }
-    return $po;
   }
 
   public function renderHTMLFromStrings($strings) {
     $html = '';
     // Get title
-    if (isset($strings['node_title'])) {
-      $html .= $this->renderHTML('node_title', $strings['node_title']);
-      unset($strings['node_title']);
-    }
-    // Get title in case of title module active
-    if (isset($strings['title_field_0'])) {
-      $html .= $this->renderHTML('title_field_0', $strings['title_field_0']);
-      unset($strings['title_field_0']);
-    }
-    // Get body and segment
-    $bodyCount = 0;
-    while (isset($strings['body_' . $bodyCount])) {
-      $html .= $this->renderHTML('body_' . $bodyCount, $strings['body_' . $bodyCount]);
-      unset($strings['body_' . $bodyCount]);
-      $bodyCount++;
-    }
+    $title_index = (array_search('title_field_0', array_column($strings, 'key')));
+    $html .= $this->renderHTML('title_field_0', $strings[$title_index]['value']);
+    $title = $strings[$title_index]['value'];
+    unset($strings[$title_index]);
     // Get the rest
-    foreach ($strings as $fieldName => $value) {
-      $html .= $this->renderHTML($fieldName, $value);
+    foreach ($strings as $string) {
+      $html .= $this->renderHTML($string['key'], $string['value']);
     }
-    return $html;
+    return array(
+      'html' => $html,
+      'title' => $title
+    );
   }
 
 
@@ -242,14 +202,9 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
       $strings = $this->extractStringsFromNode($job_item);
-      $html = $this->renderHTMLFromStrings($strings);
+      $payload = $this->renderHTMLFromStrings($strings);
       $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
-      if (isset($strings['node_title'])) { // Handle using the Title module for translatable titles
-        $title = $strings['node_title'];
-      } else {
-        $title = $strings['title_field_0'];
-      }
-      $res = $tx->upsertResource($slug, $title, $job->tjid, $html);
+      $res = $tx->upsertResource($slug, $payload['title'], $job->tjid, $payload['html']);
       if (json_decode($res)) {
         dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
         $job->submitted('The translation job has been submitted to Transifex.');
