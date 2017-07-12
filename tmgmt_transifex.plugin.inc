@@ -203,8 +203,9 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     foreach ($job->getItems() as $job_item) {
       $strings = $this->extractStringsFromNode($job_item);
       $payload = $this->renderHTMLFromStrings($strings);
+      $title = $payload['title'][0];
       $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
-      $res = $tx->upsertResource($slug, $payload['title'], $job->tjid, $payload['html']);
+      $res = $tx->upsertResource($slug, $title, $job->tjid, $payload['html']);
       if (json_decode($res)) {
         dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
         $job->submitted('The translation job has been submitted to Transifex.');
