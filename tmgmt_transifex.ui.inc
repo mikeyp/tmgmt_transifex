@@ -39,13 +39,20 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
       '#description' => t('Please enter the target project, should exist in Transifex'),
     );
-    $form['segment'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Segment body string into sentences.'),
-      '#default_value' => $translator->getSetting('segment'),
-      '#required' => TRUE,
+    $form['secret'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Transifex webhook secret'),
+      '#default_value' => $translator->getSetting('secret'),
+      '#required' => FALSE,
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
-      '#description' => t('Break up long body texts into sentences, so you get to use your TM'),
+      '#description' => t('Leave empty to deactivate webhook listener'),
+    );
+    $form['autoreview'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Autoreview translations'),
+      '#default_value' => $translator->getSetting('autoreview'),
+      '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
+      '#description' => t('Consider translation strings coming from Transifex already reviewed.'),
     );
     return parent::pluginSettingsForm($form, $form_state, $translator);
   }

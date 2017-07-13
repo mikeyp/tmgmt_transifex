@@ -53,6 +53,7 @@ function tmgmt_transifex_menu() {
     'title' => 'Transifex webhook',
     'page callback' => 'tmgmt_transifex_validate_webhook',
     'access callback' => TRUE,
+    'type' => 'MENU_CALLBACK'
   );
   return $items;
 }
@@ -61,8 +62,23 @@ function tmgmt_transifex_menu() {
  * Page callback; gitHub WebHook endpoint.
  */
 function tmgmt_transifex_validate_webhook() {
+  $translator = tmgmt_translator_load('transifex');
+  if (!$translator->settings['secret']) {
+    echo "Webhook not activated";
+    return;
+  }
+  $tx = new TransifexApi($translator);
+
   $received_json = file_get_contents("php://input",  TRUE);
   $webhook = drupal_json_decode($received_json, TRUE);
+
+  if (!isset($_SERVER['HTTP_X_TX_SIGNATURE_V2']) ||
+      !isset($_SERVER['HTTP_X_TX_URL']) ||
+      !isset($_SERVER['HTTP_HTTP_DATE'])
+  ) {
+    echo 'Missing headers';
+    return;
+  }
 
   $translator = tmgmt_translator_load('transifex');
   $tx = new TransifexApi($translator);
@@ -72,7 +88,7 @@ function tmgmt_transifex_validate_webhook() {
   $http_gmt_date = $_SERVER['HTTP_HTTP_DATE'];
   $content_md5 = md5($received_json);
   $msg = join(PHP_EOL, array('POST', $http_url_path, $http_gmt_date, $content_md5));
-  $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
+  $sig = base64_encode(hash_hmac('sha256', $msg, $translator->settings['secret'], true));
 
   if (1 == 1) {// $sig == $webhook_sig) {
     tmgmt_get_translations($tx, $webhook['resource'], $webhook['language']);
@@ -105,7 +121,7 @@ function tmgmt_get_translations($tx, $resource, $language) {
       $job = tmgmt_job_load($tjid);
       foreach ($job->getItems() as $tjiid => $job_item) {
         if ($job_item->item_id == $node_id) {
-          dpm($job->addTranslatedData(array($tjiid => $translations)));
+          $job->addTranslatedData(array($tjiid => $translations));
         }
       }
     }
