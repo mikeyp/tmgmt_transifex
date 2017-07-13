@@ -57,39 +57,6 @@ function tmgmt_transifex_menu() {
   return $items;
 }
 
-function transifex_prepare_translation($translations) {
-  $payload = array();
-  $keys = array_keys($translations);
-  $bodyCount = 0;
-  // Deal with the bodies
-  while (in_array('body_' . $bodyCount, $keys) || in_array('body_' . $bodyCount . '_sentence_0', $keys)) {
-    if (in_array('body_' . $bodyCount, $keys)) { // Non segmented body
-      $payload['body'][$bodyCount]['#text'] = $translations['body_' . $bodyCount];
-      unset($translations['body_' . $bodyCount]);
-    } else { // Segmented case - recompose
-      $composed = '';
-      $sentence_count = 0;
-      while (isset($translations['body_' . $bodyCount . '_sentence_' . $sentence_count])) {
-        $composed .= $translations['body_' . $bodyCount . '_sentence_' . $sentence_count];
-        unset($translations['body_' . $bodyCount . '_sentence_' . $sentence_count]);
-        $sentence_count++;
-      }
-      $payload['body'][$bodyCount]['value']['#text'] = $composed;
-      $bodyCount++;
-      $keys = array_keys($translations);
-    }
-  }
-  // Deal with the rest
-  foreach ($translations as $key => $translation) {
-    if (preg_match('/(.*)_(\d+)$/', $key, $matches)) {
-      $payload[$matches[1]][$matches[2]]['value']['#text'] = $translation;
-    } else {
-      $payload[$key]['#text'] = $translation;
-    }
-  }
-  return $payload;
-}
-
 /**
  * Page callback; gitHub WebHook endpoint.
  */
@@ -115,14 +82,22 @@ function tmgmt_transifex_validate_webhook() {
 }
 
 function tmgmt_get_translations($tx, $webhook) {
+
   $doc = new DOMDocument();
   $doc->loadHTML($tx->getTranslations($webhook['resource'], $webhook['language'])->content);
   $links = array();
   $xpath = new DOMXPath($doc);
-  $results = $xpath->query("//*[@class='tx_string']");
-  foreach($results as $result) {
-    $links[$result->getAttribute('id')] = $result->nodeValue;
+  $translations = array();
+  $node_id = intval(end(explode('_', $webhook['resource'])));
+
+  foreach($xpath->query("//*[@class='tx_string']") as $translation) {
+    $key = $translation->getAttribute('id');
+    $split = explode('_', $key);
+    $propCount = array_pop($split);
+    $propName  = join('_', $split);
+    $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
   }
+
   foreach ($tx->getResource($webhook['resource'])->categories as $category) {
     preg_match('/tjid:(.*)/', $category, $tjid);
     if ($tjid[1]) {
@@ -130,10 +105,7 @@ function tmgmt_get_translations($tx, $webhook) {
       $job = tmgmt_job_load($tjid);
       foreach ($job->getItems() as $tjiid => $job_item) {
         if ($job_item->item_id == $node_id) {
-          //echo json_encode($job_item);
-          $job->addTranslatedData(
-            array($tjiid => transifex_prepare_translation($translations))
-          );
+          $job->addTranslatedData(array($tjiid => $translations));
         }
       }
     }

@@ -163,7 +163,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     if (!is_array($text)) {
       return "<div class=\"tx_string\" id=\"" . $label . "\">" . $text . "</div>";
     } else {
-      $ret = "<div class=\"tx_string_segmented\" id=\"" . $label . "\">";
+      $ret = "<div class=\"tx_string\" id=\"" . $label . "\">";
       foreach ($text as $sentence) {
         $ret .= "<div class=\"tx_string_sentence\">" . $sentence . '</div>';
       }
