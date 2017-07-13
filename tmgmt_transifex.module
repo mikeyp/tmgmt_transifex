@@ -75,20 +75,20 @@ function tmgmt_transifex_validate_webhook() {
   $sig = base64_encode(hash_hmac('sha256', $msg, '12345', true));
 
   if (1 == 1) {// $sig == $webhook_sig) {
-    tmgmt_get_translations($tx, $webhook);
+    tmgmt_get_translations($tx, $webhook['resource'], $webhook['language']);
   } else {
     echo 'Invalid webhook';
   }
 }
 
-function tmgmt_get_translations($tx, $webhook) {
+function tmgmt_get_translations($tx, $resource, $language) {
 
   $doc = new DOMDocument();
-  $doc->loadHTML($tx->getTranslations($webhook['resource'], $webhook['language'])->content);
+  $doc->loadHTML($tx->getTranslations($resource, $language)->content);
   $links = array();
   $xpath = new DOMXPath($doc);
   $translations = array();
-  $node_id = intval(end(explode('_', $webhook['resource'])));
+  $node_id = intval(end(explode('_', $resource)));
 
   foreach($xpath->query("//*[@class='tx_string']") as $translation) {
     $key = $translation->getAttribute('id');
@@ -98,14 +98,14 @@ function tmgmt_get_translations($tx, $webhook) {
     $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
   }
 
-  foreach ($tx->getResource($webhook['resource'])->categories as $category) {
+  foreach ($tx->getResource($resource)->categories as $category) {
     preg_match('/tjid:(.*)/', $category, $tjid);
     if ($tjid[1]) {
       $tjid = intval($tjid[1]);
       $job = tmgmt_job_load($tjid);
       foreach ($job->getItems() as $tjiid => $job_item) {
         if ($job_item->item_id == $node_id) {
-          $job->addTranslatedData(array($tjiid => $translations));
+          dpm($job->addTranslatedData(array($tjiid => $translations)));
         }
       }
     }
@@ -114,6 +114,14 @@ function tmgmt_get_translations($tx, $webhook) {
 }
 
 function tmgmt_transifex_poll_translations($element, $second) {
-  dpm($element);
-  dpm($second);
+
+  $language = $second['tmgmt_job']->target_language;
+  $translator = $second['tmgmt_job']->getTranslator();
+  $tx = new TransifexApi($translator);
+  $project = $translator->settings['project'];
+
+  foreach ($second['tmgmt_job']->getItems() as $tjiid => $job_item) {
+    tmgmt_get_translations($tx, $project . '_' . $job_item->item_id, $language);
+  }
+
 }
