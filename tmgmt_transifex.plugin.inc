@@ -175,17 +175,15 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $html = '';
     // Get title
     $title_index = (array_search('title_field_0', array_column($strings, 'key')));
-    $html .= $this->renderHTML('title_field_0', $strings[$title_index]['value']);
-    $title = $strings[$title_index]['value'];
-    unset($strings[$title_index]);
+    if ($title_index) {
+      $html .= $this->renderHTML('title_field_0', $strings[$title_index]['value']);
+      unset($strings[$title_index]);
+    }
     // Get the rest
     foreach ($strings as $string) {
       $html .= $this->renderHTML($string['key'], $string['value']);
     }
-    return array(
-      'html' => $html,
-      'title' => $title
-    );
+    return $html;
   }
 
 
@@ -201,11 +199,15 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
+      if (isset($job_item->data['node_title'] )) {
+        $title = $job_item->data['node_title']['#text'];
+      } else {
+        $title = $job_item->data['title_field'][0]['value']['#text'];
+      }
       $strings = $this->extractStringsFromNode($job_item);
       $payload = $this->renderHTMLFromStrings($strings);
-      $title = $payload['title'][0];
       $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
-      $res = $tx->upsertResource($slug, $title, $job->tjid, $payload['html']);
+      $res = $tx->upsertResource($slug, $title, $job->tjid, $payload);
       if (json_decode($res)) {
         dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
         $job->submitted('The translation job has been submitted to Transifex.');
