@@ -72,6 +72,7 @@ class TransifexApi {
 
   function upsertResource($slug, $name, $tjid, $po) {
     $ret = $this->createResource($slug, $name, $tjid, $po);
+    $ret = json_decode($ret);
     if (!isset($ret)) {
       $ret = $this->getResource($slug);
       $ret->categories[] = 'tjid:' . $tjid;
