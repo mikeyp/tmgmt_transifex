@@ -211,10 +211,10 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       $slug = extractSlugFromUrl($translator->getSetting('project')) . '_' . $job_item->item_id;
       $res = $tx->upsertResource($slug, $title, $job->tjid, $payload);
       if (json_decode($res)) {
-        dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
+        drupal_set_message('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title, 'status');
         $job->submitted('The translation job has been submitted to Transifex.');
       } else {
-        dpm($res);
+        drupal_set_message($res, 'error');
       }
     }
   }
@@ -234,7 +234,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
   public function getTransifexProject(TMGMTTranslator $translator) {
     $tx = new TransifexApi($translator);
-    dpm(extractSlugFromUrl($translator->getSetting('project')));
+    drupal_set_message(extractSlugFromUrl($translator->getSetting('project')), 'status');
     $request = $tx->doRequestToProject('GET', '');
     return json_decode($request);
   }
