@@ -38,7 +38,8 @@ class TransifexApi {
     $data_string = json_encode($data);
     $url = join('', array(
       'project/',
-      $this->translator->getSetting('project') . '/',
+      extractSlugFromUrl($this->translator->getSetting('project')),
+      '/',
       $url
     ));
     return $this->doRequest($method, $url, $data, $headers);
@@ -207,7 +208,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       }
       $strings = $this->extractStringsFromNode($job_item);
       $payload = $this->renderHTMLFromStrings($strings);
-      $slug = $translator->getSetting('project') . '_' . $job_item->item_id;
+      $slug = extractSlugFromUrl($translator->getSetting('project')) . '_' . $job_item->item_id;
       $res = $tx->upsertResource($slug, $title, $job->tjid, $payload);
       if (json_decode($res)) {
         dpm('Added ' . json_decode($res)[0] . ' strings to resource named: ' . $title);
@@ -233,6 +234,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
   public function getTransifexProject(TMGMTTranslator $translator) {
     $tx = new TransifexApi($translator);
+    dpm(extractSlugFromUrl($translator->getSetting('project')));
     $request = $tx->doRequestToProject('GET', '');
     return json_decode($request);
   }

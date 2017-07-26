@@ -15,29 +15,26 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
    */
   public function pluginSettingsForm($form, &$form_state, TMGMTTranslator $translator, $busy = FALSE) {
     $instruction_url = 'https://transifex.com/docs';
-    $form['tx'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Transifex instance'),
-      '#default_value' => $translator->getSetting('tx'),
-      '#required' => FALSE,
-      '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
-      '#description' => '',
-    );
     $form['api'] = array(
       '#type' => 'textfield',
-      '#title' => t('Transifex API Key'),
+      '#title' => t('Transifex API Token'),
       '#default_value' => $translator->getSetting('api'),
       '#required' => TRUE,
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
-      '#description' => t('Please enter your Transifex API key. Instructions on how to set up your Azure account and get the key can be found <a href="!link" target="_blank">here</a>',array('!link' => $instruction_url)),
+      '#description' => t('You can generate a Transifex API token <a href="!link" target="_blank">here</a>. For more details, visit our <a href="!documentation" target="_blank">documentation</a>.',
+        array(
+          '!link' => 'https://www.transifex.com/user/settings/api/',
+          '!documentation' => 'https://docs.transifex.com/api/introduction#authentication'
+        )
+      ),
     );
     $form['project'] = array(
       '#type' => 'textfield',
-      '#title' => t('Transifex target project'),
+      '#title' => t('Transifex project URL'),
       '#default_value' => $translator->getSetting('project'),
       '#required' => TRUE,
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
-      '#description' => t('Please enter the target project, should exist in Transifex'),
+      '#description' => t('Enter the URL of the Transifex project you wish to use for translating this Drupal site.'),
     );
     $form['secret'] = array(
       '#type' => 'textfield',

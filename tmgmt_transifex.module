@@ -1,5 +1,7 @@
 <?php
 
+include 'utils/common.php';
+
 /**
  * @file
  * Module file of the translation management test module.
@@ -12,7 +14,7 @@ function tmgmt_transifex_tmgmt_translator_plugin_info() {
   return array(
     'transifex' => array(
       'label' => t('Transifex translator'),
-      'description' => t('Transifex Translator service.'),
+      'description' => t('Transifex Drupal connector.'),
       'plugin controller class' => 'TMGMTTransifexTranslatorPluginController',
       'ui controller class' => 'TMGMTTransifexTranslatorUIController',
       'default settings' => array(
@@ -140,7 +142,7 @@ function tmgmt_transifex_poll_translations($element, $second) {
   $language = $second['tmgmt_job']->target_language;
   $translator = $second['tmgmt_job']->getTranslator();
   $tx = new TransifexApi($translator);
-  $project = $translator->settings['project'];
+  $project = extractSlugFromUrl($translator->settings['project']);
 
   foreach ($second['tmgmt_job']->getItems() as $tjiid => $job_item) {
     $target_project = $project . '_' . $job_item->item_id;
