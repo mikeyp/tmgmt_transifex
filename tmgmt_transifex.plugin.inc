@@ -64,7 +64,7 @@ class TransifexApi {
   }
 
   function updateResource($slug, $name, $tjid, $po) {
-    return $this->doRequestToProject('PUT', 'resource/' . $slug, array(
+    return $this->doRequestToProject('PUT', 'resource/' . $slug . '/content', array(
       'name' => $name,
       'content' => $po,
       'categories' => $tjid
@@ -78,6 +78,7 @@ class TransifexApi {
       $ret = $this->getResource($slug);
       $ret->categories[] = 'tjid:' . $tjid;
       return $this->updateResource($slug, $name, $ret->categories, $po);
+
     }
     return $ret;
   }
