@@ -234,7 +234,6 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
 
   public function getTransifexProject(TMGMTTranslator $translator) {
     $tx = new TransifexApi($translator);
-    drupal_set_message(extractSlugFromUrl($translator->getSetting('project')), 'status');
     $request = $tx->doRequestToProject('GET', '');
     return json_decode($request);
   }

@@ -70,7 +70,7 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
       $info['actions']['poll'] = array(
         '#type' => 'submit',
         '#value' => t('Check for updates'),
-        '#description' => t('Check for updated translations on the Zanata server.'),
+        '#description' => t('Check for updated translations on the Transifex server.'),
         '#submit' => array('tmgmt_transifex_poll_translations'),
       );
     }
