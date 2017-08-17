@@ -1,0 +1,4 @@
+## Caveats
+
+The html file format supports only the onlyreviewed mode, so i guess we will also need
+to attach the webhooks only on review completed

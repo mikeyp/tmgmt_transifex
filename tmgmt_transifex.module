@@ -73,6 +73,7 @@ function tmgmt_transifex_menu() {
  */
 function tmgmt_transifex_validate_webhook() {
   $translator = tmgmt_translator_load('transifex');
+  watchdog('tmgmt_transifex', 'Webhook - Received webhook');
   if (!$translator->settings['secret']) {
     echo "Webhook not activated";
     watchdog('tmgmt_transifex', 'Webhook - Not active');
@@ -103,7 +104,7 @@ function tmgmt_transifex_validate_webhook() {
   $sig = base64_encode(hash_hmac('sha256', $msg, $translator->settings['secret'], true));
 
   if ($sig == $webhook_sig) {
-    tmgmt_get_translations($tx, $webhook['resource'], $webhook['language']);
+    tmgmt_get_translations($translator, $webhook['resource'], $webhook['language'], true);
   } else {
     echo 'Invalid webhook';
     watchdog('tmgmt_transifex', 'Webhook - Invalid');
@@ -111,10 +112,11 @@ function tmgmt_transifex_validate_webhook() {
   }
 }
 
-function tmgmt_get_translations($translator, $resource, $language) {
+function tmgmt_get_translations($translator, $resource, $language, $clean) {
   $tx = new TransifexApi($translator);
   $doc = new DOMDocument();
-  $doc->loadHTML($tx->getTranslations($resource, $language)->content);
+  $content = $tx->getTranslations($resource, $language)->content;
+  $doc->loadHTML($content);
   $links = array();
   $xpath = new DOMXPath($doc);
   $translations = array();
@@ -126,28 +128,39 @@ function tmgmt_get_translations($translator, $resource, $language) {
     $split = explode('_', $key);
     $propCount = array_pop($split);
     $propName  = join('_', $split);
-    $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
-    if ($translator->settings['autoreview']) {
+    // If the translation is not empty
+    if (strlen(trim($translation->nodeValue)) != 0 ) {
+      // Add translation
+      $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
+      // Mark as reviewed
       $translations[$propName][$propCount]['value']['#status'] = 2;
     }
-
   }
 
-  foreach ($tx->getResource($resource)->categories as $category) {
-    preg_match('/tjid:(.*)/', $category, $tjid);
-    if ($tjid[1]) {
-      $tjid = intval($tjid[1]);
-      $job = tmgmt_job_load($tjid);
+  $tx_resource = $tx->getResource($resource);
+  $categories = $tx_resource->categories;
+  if (!$categories) $categories = array();
+  foreach ($categories as $category) {
+    preg_match('/tjid:(.*)/', $category, $tjids);
+    array_shift($tjids);
+    foreach ($tjids as $tjid) {
+      $job = tmgmt_job_load(intval($tjid));
       if ($job) {
+        dpm($job);
         foreach ($job->getItems() as $tjiid => $job_item) {
           if ($job_item->item_id == $node_id) {
             $job->addTranslatedData(array($tjiid => $translations));
           }
         }
+        unset($categories[array_search($tjid, $categories)]);
       }
     }
   }
-
+  if ($clean) {
+    $tx->doRequestToProject('PUT', 'resource/' . $resource, array(
+      'categories' => $categories
+    ));
+  }
 }
 
 function tmgmt_transifex_poll_translations($element, $second) {
@@ -158,7 +171,7 @@ function tmgmt_transifex_poll_translations($element, $second) {
 
   foreach ($second['tmgmt_job']->getItems() as $tjiid => $job_item) {
     $target_project = $project . '_' . $job_item->item_id;
-    tmgmt_get_translations($translator, $target_project, $language);
+    tmgmt_get_translations($translator, $target_project, $language, false);
   }
 
 }

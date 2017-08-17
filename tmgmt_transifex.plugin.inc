@@ -50,35 +50,42 @@ class TransifexApi {
   }
 
   function getTranslations($slug, $lang) {
-    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang));
+    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang . '/?mode=onlyreviewed'));
   }
 
-  function createResource($slug, $name, $tjid, $po) {
+  function createResource($slug, $name, $tjid, $content) {
     return $this->doRequestToProject('POST', 'resources', array(
      'name' => $name,
      'slug' => $slug,
-     'content' => $po,
+     'content' => $content,
      'i18n_type' => 'HTML',
      'category' => 'tjid:' . $tjid
    ));
   }
 
-  function updateResource($slug, $name, $tjid, $po) {
-    return $this->doRequestToProject('PUT', 'resource/' . $slug . '/content', array(
+  function updateResource($slug, $name, $categories, $content) {
+    // First update resource details
+    $this->doRequestToProject('PUT', 'resource/' . $slug, array(
       'name' => $name,
-      'content' => $po,
-      'categories' => $tjid
+      'categories' => $categories
     ));
+    // Then update source strings
+    return $this->doRequestToProject('PUT', 'resource/' . $slug . '/content', array(
+      'content' => $content,
+    ));
+
   }
 
-  function upsertResource($slug, $name, $tjid, $po) {
-    $ret = $this->createResource($slug, $name, $tjid, $po);
-    $ret = json_decode($ret);
+
+  function upsertResource($slug, $name, $tjid, $content) {
+    $ret = drupal_json_decode($this->createResource($slug, $name, $tjid, $content));
     if (!isset($ret)) {
       $ret = $this->getResource($slug);
-      $ret->categories[] = 'tjid:' . $tjid;
-      return $this->updateResource($slug, $name, $ret->categories, $po);
-
+      if (!in_array('tjid:' . $tjid, $ret->categories)) {
+        $ret->categories[] = 'tjid:' . $tjid;
+      }
+      $ret = $this->updateResource($slug, $name, $ret->categories, $content);
+      $ret = drupal_json_decode($ret);
     }
     return $ret;
   }
@@ -199,7 +206,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $translation = array();
     $translator = $job->getTranslator();
     $tx = new TransifexApi($translator);
-
+    $job_count = 0;
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
       if (isset($job_item->data['node_title'] )) {
@@ -211,13 +218,15 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       $payload = $this->renderHTMLFromStrings($strings);
       $slug = extractSlugFromUrl($translator->getSetting('project')) . '_' . $job_item->item_id;
       $res = $tx->upsertResource($slug, $title, $job->tjid, $payload);
-      if (is_array($res)) {
+      if (isset($res[0])) {
+        $job_count++;
         drupal_set_message('Added ' . $res[0] . ' strings to resource named: ' . $title, 'status');
-        $job->submitted('The translation job has been submitted to Transifex.');
       } else {
-        drupal_set_message($res, 'error');
+        $job_count++;
+        drupal_set_message(drupal_json_encode($res), 'status');
       }
     }
+    $job->submitted($job_count . ' translation job(s) have been submitted or updated to Transifex.');
   }
 
   /**
