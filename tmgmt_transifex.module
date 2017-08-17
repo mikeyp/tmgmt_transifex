@@ -143,10 +143,11 @@ function tmgmt_get_translations($translator, $resource, $language, $clean) {
   foreach ($categories as $category) {
     preg_match('/tjid:(.*)/', $category, $tjids);
     array_shift($tjids);
+    watchdog('tmgmt_transifex', drupal_json_encode($tjids));
     foreach ($tjids as $tjid) {
       $job = tmgmt_job_load(intval($tjid));
-      if ($job) {
-        dpm($job);
+      if ($job && $job->target_language == $language) {
+        watchdog('tmgmt_transifex', 'Applying ' . $language . ' translations for job with id: ' . $tjid );
         foreach ($job->getItems() as $tjiid => $job_item) {
           if ($job_item->item_id == $node_id) {
             $job->addTranslatedData(array($tjiid => $translations));
