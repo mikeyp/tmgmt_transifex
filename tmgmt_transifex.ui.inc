@@ -44,13 +44,6 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
       '#description' => t('Leave empty to deactivate webhook listener'),
     );
-    $form['autoreview'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Autoreview translations'),
-      '#default_value' => $translator->getSetting('autoreview'),
-      '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
-      '#description' => t('Consider translation strings coming from Transifex already reviewed.'),
-    );
     return parent::pluginSettingsForm($form, $form_state, $translator);
   }
 
