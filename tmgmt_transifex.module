@@ -93,8 +93,6 @@ function tmgmt_transifex_validate_webhook() {
     return;
   }
 
-  $translator = tmgmt_translator_load('transifex');
-  $tx = new TransifexApi($translator);
   $http_verb = 'POST';
   $webhook_sig = $_SERVER['HTTP_X_TX_SIGNATURE_V2'];
   $http_url_path = $_SERVER['HTTP_X_TX_URL'];
