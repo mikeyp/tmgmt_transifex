@@ -49,8 +49,12 @@ class TransifexApi {
     return json_decode($this->doRequestToProject('GET', 'resource/' . $slug));
   }
 
+  function getStats($slug, $lang_code) {
+    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . '/stats' . '/' . $lang_code . '/'));
+  }
+
   function getTranslations($slug, $lang) {
-    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang . '/?mode=onlyreviewed'));
+    return json_decode($this->doRequestToProject('GET', 'resource/' . $slug . "/" . "translation/" . $lang));
   }
 
   function createResource($slug, $name, $tjid, $content) {
@@ -125,23 +129,6 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
       return TRUE;
     }
     return FALSE;
-  }
-
-  /**
-   * Overrides TMGMTDefaultTranslatorPluginController::canTranslate().
-   */
-  public function canTranslate(TMGMTTranslator $translator, TMGMTJob $job) {
-    if (!parent::canTranslate($translator, $job)) {
-      return FALSE;
-    }
-    foreach (array_filter(tmgmt_flatten_data($job->getData()), '_tmgmt_filter_data') as $value) {
-      // If one of the texts in this job exceeds the max character count the job
-      // can't be translated.
-      if (drupal_strlen($value['#text']) > $this->maxCharacters) {
-        return FALSE;
-      }
-    }
-    return TRUE;
   }
 
   public function extractStringsFromNode(TMGMTJobItem $job_item) {
@@ -263,22 +250,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
    * Overrides TMGMTDefaultTranslatorPluginController::getSupportedTargetLanguages().
    */
   public function getSupportedTargetLanguages(TMGMTTranslator $translator, $source_language) {
-
-    $remote_languages = $this->getSupportedRemoteLanguages($translator);
-    $languages = array();
-
-    foreach ($remote_languages as $remote_language) {
-      $local_language = $translator->mapToLocalLanguage($remote_language);
-      $languages[$local_language] = $local_language;
-    }
-
-    // Check if the source language is available.
-    if (array_key_exists($source_language, $languages)) {
-      unset($languages[$source_language]);
-      return $languages;
-    }
-
-    return array();
+    return $this->getSupportedRemoteLanguages($translator);
   }
 
   /**

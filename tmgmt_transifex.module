@@ -27,6 +27,7 @@ function tmgmt_transifex_tmgmt_translator_plugin_info() {
         'api' => '',
         'tx' => '',
         'project' => '',
+        'onlyreviewed' => false,
       ),
     ),
   );
@@ -104,14 +105,23 @@ function tmgmt_transifex_validate_webhook() {
   if ($sig == $webhook_sig) {
     tmgmt_get_translations($translator, $webhook['resource'], $webhook['language'], true);
   } else {
-    echo 'Invalid webhook';
     watchdog('tmgmt_transifex', 'Webhook - Invalid');
-
   }
 }
 
 function tmgmt_get_translations($translator, $resource, $language, $clean) {
   $tx = new TransifexApi($translator);
+
+  $stats = $tx->getStats($resource, $language);
+  if (!$stats) {
+    return drupal_set_message('Missing resource with slug: ' . $resource);
+  }
+  if ($stats->untranslated_entities !== 0 && !$translator->getSetting('onlyreviewed')) {
+    return drupal_set_message('Resource with slug: ' . $resource . ' missing translations.');
+  }
+  if ($stats->reviewed_percentage !== '100%' && $translator->getSetting('onlyreviewed')) {
+    return drupal_set_message('Resource with slug: ' . $resource . ' missing review.');
+  }
   $doc = new DOMDocument();
   $content = $tx->getTranslations($resource, $language)->content;
   $doc->loadHTML($content);

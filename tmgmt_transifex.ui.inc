@@ -44,6 +44,13 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
       '#description' => t('Leave empty to deactivate webhook listener'),
     );
+    $form['onlyreviewed'] = array(
+       '#type' => 'checkbox',
+       '#title' => t('Pull resources only if the review process has been completed'),
+       '#default_value' => $translator->getSetting('onlyreviewed'),
+       '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
+       '#description' => t('By default a resource will be imported to your site when it reaches 100% translation for a certain language.'),
+    );
     return parent::pluginSettingsForm($form, $form_state, $translator);
   }
 
