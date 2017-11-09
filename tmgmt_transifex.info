@@ -6,3 +6,4 @@ configure = admin/config/regional/tmgmt_translator
 dependencies[] = tmgmt
 files[] = tmgmt_transifex.plugin.inc
 files[] = tmgmt_transifex.ui.inc
+

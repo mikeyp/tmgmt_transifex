@@ -198,8 +198,10 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     foreach ($job->getItems() as $job_item) {
       if (isset($job_item->data['node_title'] )) {
         $title = $job_item->data['node_title']['#text'];
-      } else {
+      } else if (isset($job_item->data['title_field'] )) {
         $title = $job_item->data['title_field'][0]['value']['#text'];
+      } else {
+        $title = $job_item->item_type . '_' . $job_item->identifier();
       }
       $strings = $this->extractStringsFromNode($job_item);
       $payload = $this->renderHTMLFromStrings($strings);
