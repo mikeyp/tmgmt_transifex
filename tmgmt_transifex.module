@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * Parses project url from settings and extracts project slug.
+ */
 function extractSlugFromUrl($url) {
   $exploded = array_filter(explode('/', $url));
   if (strcmp(end($exploded), 'dashboard') == 0) {
@@ -9,6 +12,17 @@ function extractSlugFromUrl($url) {
 }
 
 /**
+ * Constructs resource slug for job item.
+ */
+function slugForItem($job_item) {
+  $prefix = "txdrupal";
+  return join(
+    '_',
+    array($prefix, str_replace(':', '_', $job_item->item_id))
+  );
+}
+
+/*
  * @file
  * Module file of the translation management test module.
  */
@@ -124,27 +138,31 @@ function tmgmt_get_translations($translator, $resource, $language, $clean) {
   }
   $doc = new DOMDocument();
   $content = $tx->getTranslations($resource, $language)->content;
-  $doc->loadHTML($content);
-  $links = array();
+  $doc->loadHTML(mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8'));
   $xpath = new DOMXPath($doc);
-  $translations = array();
-  $exploded = explode('_', $resource);
-  $node_id = intval(end($exploded));
 
+  $translations = array();
   foreach($xpath->query("//*[@class='tx_string']") as $translation) {
     $key = $translation->getAttribute('id');
     $split = explode('_', $key);
     $propCount = array_pop($split);
-    $propName  = join('_', $split);
+    $propName = join('_', $split);
     // If the translation is not empty
     if (strlen(trim($translation->nodeValue)) != 0 ) {
       // Add translation
-      $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
-      // Mark as reviewed
-      $translations[$propName][$propCount]['value']['#status'] = 2;
+      if (strlen($propName) != 0 ) {
+        $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
+        // Mark as reviewed
+        $translations[$propName][$propCount]['value']['#status'] = 2;
+      } else {
+        $translations[$key]['#text'] = $translation->nodeValue;
+        // Mark as reviewed
+        $translations[$key]['#status'] = 2;
+      }
     }
   }
 
+  $node_id = str_replace('_', ':', explode('_', $resource, 2)[1]);
   $tx_resource = $tx->getResource($resource);
   $categories = $tx_resource->categories;
   if (!$categories) $categories = array();
@@ -175,12 +193,10 @@ function tmgmt_get_translations($translator, $resource, $language, $clean) {
 function tmgmt_transifex_poll_translations($element, $second) {
   $language = $second['tmgmt_job']->target_language;
   $translator = $second['tmgmt_job']->getTranslator();
-  $tx = new TransifexApi($translator);
-  $project = extractSlugFromUrl($translator->settings['project']);
 
   foreach ($second['tmgmt_job']->getItems() as $tjiid => $job_item) {
-    $target_project = $project . '_' . $job_item->item_id;
-    tmgmt_get_translations($translator, $target_project, $language, false);
+    $target_resource = slugForItem($job_item);
+    tmgmt_get_translations($translator, $target_resource, $language, false);
   }
 
 }

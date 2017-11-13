@@ -136,21 +136,30 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $translator = $job_item->getTranslator();
     foreach ($job_item->data as $fieldName => $value ) {
       $propCount = 0;
-      while (isset($value[$propCount])) {
-        if (in_array($value[$propCount]['format']['#text'], array('full_html', 'filtered_html'))) {
-          $translation_payload[] = array(
-            'key' => $fieldName . '_' . $propCount,
-            'value' => $value[$propCount]['value']['#text']
-          );
-        } else {
-          $Sentence	= new Sentence;
-          $sentence_count = 0;
-          $translation_payload[] = array(
-            'key' => $fieldName . '_' . $propCount,
-            'value' => $Sentence->split($value[$propCount]['value']['#text'])
-          );
+      if (isset($value[$propCount])) {
+        while (isset($value[$propCount])) {
+          if (in_array($value[$propCount]['format']['#text'], array('full_html', 'filtered_html'))) {
+            $translation_payload[] = array(
+              'key' => $fieldName . '_' . $propCount,
+              'value' => $value[$propCount]['value']['#text']
+            );
+          } else {
+            $Sentence	= new Sentence;
+            $sentence_count = 0;
+            $translation_payload[] = array(
+              'key' => $fieldName . '_' . $propCount,
+              'value' => $Sentence->split($value[$propCount]['value']['#text'])
+            );
+          }
+          $propCount++;
         }
-        $propCount++;
+      } else {
+        $Sentence	= new Sentence;
+        $sentence_count = 0;
+        $translation_payload[] = array(
+          'key' => $fieldName,
+          'value' => $Sentence->split($value['#text'])
+        );
       }
     }
     return $translation_payload;
@@ -168,10 +177,19 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     }
   }
 
+  /**
+   * @param $strings
+   * An array of key, value strings to be encoded as an html document
+   *
+   * @return string
+   * The final html containing all the strings as <div> elements with the
+   * content in the div body and the key as the id attribute of the div
+   */
   public function renderHTMLFromStrings($strings) {
     $html = '';
-    // Get title
-    $title_index = (array_search('title_field_0', array_column($strings, 'key')));
+    $title_index = array_search(
+      'title_field_0', array_column($strings, 'key')
+    );
     if ($title_index) {
       $html .= $this->renderHTML('title_field_0', $strings[$title_index]['value']);
       unset($strings[$title_index]);
@@ -182,7 +200,6 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     }
     return $html;
   }
-
 
   /**
    * Implements TMGMTTranslatorPluginControllerInterface::requestTranslation().
@@ -196,16 +213,11 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     $job_count = 0;
     $payloads = array();
     foreach ($job->getItems() as $job_item) {
-      if (isset($job_item->data['node_title'] )) {
-        $title = $job_item->data['node_title']['#text'];
-      } else if (isset($job_item->data['title_field'] )) {
-        $title = $job_item->data['title_field'][0]['value']['#text'];
-      } else {
-        $title = $job_item->item_type . '_' . $job_item->identifier();
-      }
+      $title = $job_item->label();
+
       $strings = $this->extractStringsFromNode($job_item);
       $payload = $this->renderHTMLFromStrings($strings);
-      $slug = extractSlugFromUrl($translator->getSetting('project')) . '_' . $job_item->item_id;
+      $slug = slugForItem($job_item);
       $res = $tx->upsertResource($slug, $title, $job->tjid, $payload);
       if (isset($res[0])) {
         $job_count++;
