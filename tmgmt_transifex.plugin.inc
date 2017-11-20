@@ -234,7 +234,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     } else {
       $ret = "<div class=\"tx_string\" id=\"" . $label . "\">";
       foreach ($text as $sentence) {
-        $ret .= "<div class=\"tx_string_sentence\">" . $sentence . '</div>';
+        $ret .= "<div class=\"tx_string_sentence\">" . nl2br($sentence) . '</div>';
       }
       return $ret . "</div>";
     }
