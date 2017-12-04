@@ -46,10 +46,10 @@ class TMGMTTransifexTranslatorUIController extends TMGMTDefaultTranslatorUIContr
     );
     $form['onlyreviewed'] = array(
        '#type' => 'checkbox',
-       '#title' => t('Pull resources only if the review process has been completed'),
+       '#title' => t('Pull only when a language is 100% reviewed'),
        '#default_value' => $translator->getSetting('onlyreviewed'),
        '#element_validate' => array('tmgmt_transifex_plugin_settings_form_validate'),
-       '#description' => t('By default a resource will be imported to your site when it reaches 100% translation for a certain language.'),
+       '#description' => t('By default, translations for a language are imported to Drupal once it is 100% translated'),
     );
     return parent::pluginSettingsForm($form, $form_state, $translator);
   }

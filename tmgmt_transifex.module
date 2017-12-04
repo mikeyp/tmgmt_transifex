@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * Parses project url from settings and extracts project slug.
+ */
 function extractSlugFromUrl($url) {
   $exploded = array_filter(explode('/', $url));
   if (strcmp(end($exploded), 'dashboard') == 0) {
@@ -9,6 +12,17 @@ function extractSlugFromUrl($url) {
 }
 
 /**
+ * Constructs resource slug for job item.
+ */
+function slugForItem($job_item) {
+  $prefix = "txdrupal";
+  return join(
+    '_',
+    array($prefix, str_replace(':', '_', $job_item->item_id))
+  );
+}
+
+/*
  * @file
  * Module file of the translation management test module.
  */
@@ -35,6 +49,10 @@ function tmgmt_transifex_tmgmt_translator_plugin_info() {
 
 /**
  * Validation callback for the plugin settings form.
+ *
+ * @param $element
+ * @param $form_state
+ * @param $form
  */
 function tmgmt_transifex_plugin_settings_form_validate($element, &$form_state, $form) {
   $settings = $form_state['values']['settings'];
@@ -70,7 +88,7 @@ function tmgmt_transifex_menu() {
 }
 
 /**
- * Page callback; gitHub WebHook endpoint.
+ * Page callback; transifex WebHook endpoint.
  */
 function tmgmt_transifex_validate_webhook() {
   $translator = tmgmt_translator_load('transifex');
@@ -80,10 +98,9 @@ function tmgmt_transifex_validate_webhook() {
     watchdog('tmgmt_transifex', 'Webhook - Not active');
     return;
   }
-  $tx = new TransifexApi($translator);
 
   $received_json = file_get_contents("php://input", TRUE);
-  $webhook = drupal_json_decode($received_json, TRUE);
+  $webhook = drupal_json_decode($received_json);
 
   if (!isset($_SERVER['HTTP_X_TX_SIGNATURE_V2']) ||
       !isset($_SERVER['HTTP_X_TX_URL']) ||
@@ -94,7 +111,6 @@ function tmgmt_transifex_validate_webhook() {
     return;
   }
 
-  $http_verb = 'POST';
   $webhook_sig = $_SERVER['HTTP_X_TX_SIGNATURE_V2'];
   $http_url_path = $_SERVER['HTTP_X_TX_URL'];
   $http_gmt_date = $_SERVER['HTTP_DATE'];
@@ -109,42 +125,121 @@ function tmgmt_transifex_validate_webhook() {
   }
 }
 
-function tmgmt_get_translations($translator, $resource, $language, $clean) {
-  $tx = new TransifexApi($translator);
 
-  $stats = $tx->getStats($resource, $language);
-  if (!$stats) {
-    return drupal_set_message('Missing resource with slug: ' . $resource);
+/**
+ * @param \DOMNode $oNode
+ *
+ * @return string
+ */
+function DOMinnerHTML(DOMNode $element) {
+  $innerHTML = "";
+
+  foreach ($element->childNodes as $child)
+  {
+    $innerHTML .= $element->ownerDocument->saveHTML($child);
   }
-  if ($stats->untranslated_entities !== 0 && !$translator->getSetting('onlyreviewed')) {
-    return drupal_set_message('Resource with slug: ' . $resource . ' missing translations.');
-  }
-  if ($stats->reviewed_percentage !== '100%' && $translator->getSetting('onlyreviewed')) {
-    return drupal_set_message('Resource with slug: ' . $resource . ' missing review.');
-  }
+  return $innerHTML;
+}
+
+/**
+ * Fetches translations from Transifex, parses the html and returns an array with
+ * the translations
+ * For Entity type items translations should look like:
+ * array (
+ *   'title_field' =>
+ *     array (
+ *       0 =>
+ *         array (
+ *           'value' =>
+ *              array (
+ *               '#text' => 'δευτερο τεστ',
+ *               '#status' => 2,
+ *             ),
+ *         ),
+ *     ),
+ * )
+ * while for I18n Strings type items translations look like:
+ * array (
+ *   'blocks:menu:main-menu:title' =>
+ *     array (
+ *       '#text' => 'δευτερο τεστ',
+ *       '#status' => 2,
+ *     ),
+ * )
+ * @param $translator
+ * @param $resource
+ * @param $language
+ *
+ * @return array
+ */
+function getRemoteTranslations($translator, $resource, $language) {
+  $tx = new TransifexApi($translator);
   $doc = new DOMDocument();
   $content = $tx->getTranslations($resource, $language)->content;
-  $doc->loadHTML($content);
-  $links = array();
+  $doc->loadHTML(mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8'));
   $xpath = new DOMXPath($doc);
-  $translations = array();
-  $exploded = explode('_', $resource);
-  $node_id = intval(end($exploded));
 
-  foreach($xpath->query("//*[@class='tx_string']") as $translation) {
+  $translations = [];
+  foreach ($xpath->query("//*[@class='tx_string']") as $translation) {
+    $sentences = [];
+    # if content is part of a sentence get text of each node and join using a space.
+    foreach ($xpath->query("*[@class='tx_string_sentence']", $translation) as $node) {
+      array_push($sentences, $node->nodeValue);
+    }
+    if (count($sentences) == 0) {
+      $tr = DOMinnerHTML($translation);
+    } else {
+      $tr = join(' ', $sentences);
+    }
     $key = $translation->getAttribute('id');
     $split = explode('_', $key);
     $propCount = array_pop($split);
-    $propName  = join('_', $split);
+    $propName = join('_', $split);
     // If the translation is not empty
-    if (strlen(trim($translation->nodeValue)) != 0 ) {
+    if (strlen(trim($tr)) != 0) {
       // Add translation
-      $translations[$propName][$propCount]['value']['#text'] = $translation->nodeValue;
-      // Mark as reviewed
-      $translations[$propName][$propCount]['value']['#status'] = 2;
+      if (strlen($propName) != 0) {
+        $translations[$propName][$propCount]['value']['#text'] = $tr;
+        // Mark as reviewed
+        $translations[$propName][$propCount]['value']['#status'] = 2;
+      }
+      else {
+        $translations[$key]['#text'] = $tr;
+        // Mark as reviewed
+        $translations[$key]['#status'] = 2;
+      }
     }
   }
+  return $translations;
+}
 
+/**
+ * @param $translator
+ * @param $resource
+ * @param $language
+ * @param $clean
+ *
+ * @return array|null
+ */
+function tmgmt_get_translations($translator, $resource, $language, $clean) {
+  $tx = new TransifexApi($translator);
+  $stats = $tx->getStats($resource, $language);
+  if (!$stats) {
+    drupal_set_message('Missing resource with slug: ' . $resource);
+    return [];
+  }
+  if ($stats->untranslated_entities !== 0 && !$translator->getSetting('onlyreviewed')) {
+    drupal_set_message('Resource with slug: ' . $resource . ' missing translations.');
+    return [];
+  }
+  if ($stats->reviewed_percentage !== '100%' && $translator->getSetting('onlyreviewed')) {
+    drupal_set_message('Resource with slug: ' . $resource . ' missing review.');
+    return [];
+  }
+
+  $translations = getRemoteTranslations($translator, $resource, $language);
+
+  $node_id = str_replace('_', ':', explode('_', $resource, 2)[1]);
   $tx_resource = $tx->getResource($resource);
   $categories = $tx_resource->categories;
   if (!$categories) $categories = array();
@@ -172,15 +267,17 @@ function tmgmt_get_translations($translator, $resource, $language, $clean) {
   }
 }
 
+/**
+ * @param $element
+ * @param $second
+ */
 function tmgmt_transifex_poll_translations($element, $second) {
   $language = $second['tmgmt_job']->target_language;
   $translator = $second['tmgmt_job']->getTranslator();
-  $tx = new TransifexApi($translator);
-  $project = extractSlugFromUrl($translator->settings['project']);
 
   foreach ($second['tmgmt_job']->getItems() as $tjiid => $job_item) {
-    $target_project = $project . '_' . $job_item->item_id;
-    tmgmt_get_translations($translator, $target_project, $language, false);
+    $target_resource = slugForItem($job_item);
+    tmgmt_get_translations($translator, $target_resource, $language, false);
   }
 
 }
