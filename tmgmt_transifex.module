@@ -144,6 +144,21 @@ function DOMinnerHTML(DOMNode $element) {
 /**
  * Fetches translations from Transifex, parses the html and returns an array with
  * the translations
+ * @param $translator
+ * @param $resource
+ * @param $language
+ *
+ * @return array
+ */
+function getRemoteTranslations($translator, $resource, $language) {
+  $tx = new TransifexApi($translator);
+  $content = $tx->getTranslations($resource, $language)->content;
+  return parseRemoteTranslations($content);
+}
+
+/**
+ * Parses the Transifex translations html and returns an array with
+ * the translations.
  * For Entity type items translations should look like:
  * array (
  *   'title_field' =>
@@ -166,16 +181,12 @@ function DOMinnerHTML(DOMNode $element) {
  *       '#status' => 2,
  *     ),
  * )
- * @param $translator
- * @param $resource
- * @param $language
+ * @param $content
  *
  * @return array
  */
-function getRemoteTranslations($translator, $resource, $language) {
-  $tx = new TransifexApi($translator);
+function parseRemoteTranslations($content) {
   $doc = new DOMDocument();
-  $content = $tx->getTranslations($resource, $language)->content;
   $doc->loadHTML(mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8'));
   $xpath = new DOMXPath($doc);
 

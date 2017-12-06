@@ -228,7 +228,7 @@ class TMGMTTransifexTranslatorPluginController extends TMGMTDefaultTranslatorPlu
     return $translation_payload;
   }
 
-  private function renderHTML($label, $text) {
+  public static function renderHTML($label, $text) {
     if (!is_array($text)) {
       return "<div class=\"tx_string\" id=\"" . $label . "\">" . $text . "</div>";
     } else {
